@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+// Use relative path /api so nginx can proxy to backend
+// In production, nginx proxies /api/* to backend:3000/*
+const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 export async function apiFetch(
   path: string,

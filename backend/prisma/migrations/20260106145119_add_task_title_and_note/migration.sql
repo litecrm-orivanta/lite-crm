@@ -1,0 +1,3 @@
+-- This migration was already applied directly to the database earlier.
+-- It is recreated here to reconcile Prisma migration history.
+-- No SQL is required.

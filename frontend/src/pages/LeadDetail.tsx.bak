@@ -1,0 +1,322 @@
+/* FULL FILE – RESTORED UI + NOTES + TASKS + LEAD ASSIGNMENT (FIXED) */
+
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import AppLayout from "@/layouts/AppLayout";
+import { getLead, updateLead } from "@/api/leads";
+import {
+  listNotes,
+  createNote,
+  updateNote,
+  deleteNote,
+  LeadNote,
+} from "@/api/leadNotes";
+import {
+  listTasks,
+  createTask,
+  updateTask,
+  deleteTask,
+  toggleTask,
+  Task,
+} from "@/api/tasks";
+import { listUsers, User } from "@/api/users";
+import { assignLead } from "@/api/leadAssignments";
+
+type TaskFilter = "all" | "today" | "overdue";
+
+function formatIST(date: string) {
+  return new Date(date).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export default function LeadDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const phoneRegex = /^[0-9]{7,15}$/;
+
+  const [lead, setLead] = useState<any>(null);
+  const [users, setUsers] = useState<User[]>([]);
+
+  // NOTES
+  const [notes, setNotes] = useState<LeadNote[]>([]);
+  const [noteText, setNoteText] = useState("");
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState("");
+
+  // TASKS
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskNote, setTaskNote] = useState("");
+  const [dueAt, setDueAt] = useState("");
+  const [taskFilter, setTaskFilter] = useState<TaskFilter>("all");
+
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskTitle, setEditingTaskTitle] = useState("");
+  const [editingTaskNote, setEditingTaskNote] = useState("");
+  const [editingTaskDueAt, setEditingTaskDueAt] = useState("");
+
+  async function loadAll() {
+    if (!id) return;
+    const [l, n, t, u] = await Promise.all([
+      getLead(id),
+      listNotes(id),
+      listTasks(id),
+      listUsers(),
+    ]);
+    setLead(l);
+    setNotes(n);
+    setTasks(t);
+    setUsers(u);
+  }
+
+  useEffect(() => {
+    loadAll();
+  }, [id]);
+
+  async function saveLead() {
+    await updateLead(id!, lead);
+    navigate("/");
+  }
+
+  async function changeOwner(newOwnerId: string) {
+    if (newOwnerId === lead.ownerId) return;
+    await assignLead(id!, newOwnerId);
+    loadAll();
+  }
+
+  /* ---------- NOTES ---------- */
+
+  async function addNote() {
+    if (!noteText.trim()) return;
+    const saved = await createNote(id!, noteText);
+    setNotes((prev) => [saved, ...prev]);
+    setNoteText("");
+  }
+
+  async function saveNote(noteId: string) {
+    await updateNote(noteId, editingNoteText);
+    setEditingNoteId(null);
+    loadAll();
+  }
+
+  async function removeNote(noteId: string) {
+    if (!confirm("Delete this note?")) return;
+    await deleteNote(noteId);
+    loadAll();
+  }
+
+  /* ---------- TASKS ---------- */
+
+  async function addTask() {
+    if (!taskTitle || !dueAt) return;
+    await createTask(id!, { title: taskTitle, note: taskNote, dueAt });
+    setTaskTitle("");
+    setTaskNote("");
+    setDueAt("");
+    loadAll();
+  }
+
+  async function saveTask(taskId: string) {
+    await updateTask(id!, taskId, {
+      title: editingTaskTitle,
+      note: editingTaskNote,
+      dueAt: editingTaskDueAt,
+    });
+    setEditingTaskId(null);
+    loadAll();
+  }
+
+  async function removeTask(taskId: string) {
+    if (!confirm("Delete this task?")) return;
+    await deleteTask(id!, taskId);
+    loadAll();
+  }
+
+  async function toggle(taskId: string) {
+    await toggleTask(taskId);
+    loadAll();
+  }
+
+  const filteredTasks = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return tasks.filter((t) => {
+      if (t.completed) return taskFilter === "all";
+      if (taskFilter === "today") return t.dueAt.startsWith(today);
+      if (taskFilter === "overdue") return t.dueAt < today;
+      return true;
+    });
+  }, [tasks, taskFilter]);
+
+  if (!lead) return null;
+
+  return (
+    <AppLayout>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* LEFT */}
+        <div className="lg:col-span-2 space-y-6">
+
+          {/* EDIT LEAD */}
+          <div className="rounded bg-white p-6 shadow">
+            <h2 className="text-lg font-semibold mb-4">Edit Lead</h2>
+
+            <label className="text-sm font-medium">Assigned to</label>
+            <select
+              className="mb-4 w-full rounded border px-3 py-2"
+              value={lead.ownerId}
+              onChange={(e) => changeOwner(e.target.value)}
+            >
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} ({u.email})
+                </option>
+              ))}
+            </select>
+
+            {["name", "email", "phone", "company"].map((f) => (
+              <input
+                key={f}
+                className="mb-3 w-full rounded border px-3 py-2"
+                value={lead[f] || ""}
+                placeholder={f}
+                onChange={(e) =>
+                  setLead({ ...lead, [f]: e.target.value })
+                }
+              />
+            ))}
+
+            <button
+              onClick={saveLead}
+              className="rounded bg-slate-900 px-4 py-2 text-white"
+            >
+              Save
+            </button>
+          </div>
+
+          {/* NOTES */}
+          <div className="rounded bg-white p-6 shadow">
+            <h2 className="text-lg font-semibold mb-4">Notes</h2>
+
+            <textarea
+              className="w-full rounded border px-3 py-2"
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+            />
+
+            <button
+              onClick={addNote}
+              className="mt-2 rounded bg-slate-900 px-4 py-2 text-white"
+            >
+              Add Note
+            </button>
+
+            <div className="mt-4 space-y-3">
+              {notes.map((n) => (
+                <div key={n.id} className="rounded border p-3">
+                  {editingNoteId === n.id ? (
+                    <>
+                      <textarea
+                        className="w-full rounded border"
+                        value={editingNoteText}
+                        onChange={(e) =>
+                          setEditingNoteText(e.target.value)
+                        }
+                      />
+                      <button onClick={() => saveNote(n.id)}>Save</button>
+                    </>
+                  ) : (
+                    <>
+                      <div>{n.content}</div>
+                      <div className="mt-2 flex gap-3 text-sm">
+                        <button
+                          onClick={() => {
+                            setEditingNoteId(n.id);
+                            setEditingNoteText(n.content);
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button onClick={() => removeNote(n.id)}>
+                          Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* TASKS */}
+        <div className="space-y-6">
+          <div className="rounded bg-white p-6 shadow">
+            <h2 className="text-lg font-semibold mb-4">Tasks</h2>
+
+            <input
+              className="mb-2 w-full rounded border"
+              placeholder="Task title"
+              value={taskTitle}
+              onChange={(e) => setTaskTitle(e.target.value)}
+            />
+
+            <input
+              type="date"
+              className="mb-2 w-full rounded border"
+              value={dueAt}
+              onChange={(e) => setDueAt(e.target.value)}
+            />
+
+            <button onClick={addTask}>Add Task</button>
+
+            <div className="mt-4 space-y-3">
+              {filteredTasks.map((t) => (
+                <div key={t.id} className="rounded border p-3">
+                  <input
+                    type="checkbox"
+                    checked={t.completed}
+                    onChange={() => toggle(t.id)}
+                  />
+                  {editingTaskId === t.id ? (
+                    <>
+                      <input
+                        value={editingTaskTitle}
+                        onChange={(e) =>
+                          setEditingTaskTitle(e.target.value)
+                        }
+                      />
+                      <button onClick={() => saveTask(t.id)}>Save</button>
+                    </>
+                  ) : (
+                    <>
+                      <div>{t.title}</div>
+                      <button
+                        onClick={() => {
+                          setEditingTaskId(t.id);
+                          setEditingTaskTitle(t.title);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button onClick={() => removeTask(t.id)}>
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </AppLayout>
+  );
+}

@@ -8,6 +8,7 @@ RUN npm install --legacy-peer-deps
 
 # Copy configs and source
 COPY tsconfig*.json ./
+COPY nest-cli.json ./
 COPY prisma ./prisma
 COPY src ./src
 

@@ -37,7 +37,8 @@ export default function LoginPage() {
   }
 
   function onGoogleLogin() {
-    window.location.href = "http://localhost:3000/auth/google";
+    // Use relative path so nginx can proxy to backend
+    window.location.href = "/api/auth/google";
   }
 
   return (

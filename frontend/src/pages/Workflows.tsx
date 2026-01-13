@@ -82,21 +82,15 @@ export default function Workflows() {
             <div className="flex gap-2">
               <Link
                 to="/workflows/configuration"
-                className="px-4 py-2 text-sm rounded border border-green-300 text-green-700 hover:bg-green-50 font-medium inline-block"
+                className="px-4 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 font-medium inline-block"
               >
-                ⚙️ Configure
+                ⚙️ Configure Workflows
               </Link>
               <Link
                 to="/workflows/setup-guide"
                 className="px-4 py-2 text-sm rounded border border-blue-300 text-blue-700 hover:bg-blue-50 font-medium inline-block"
               >
                 📖 Setup Guide
-              </Link>
-              <Link
-                to="/workflows/editor"
-                className="px-4 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 font-medium inline-block"
-              >
-                Open Editor →
               </Link>
             </div>
           </div>
@@ -111,13 +105,13 @@ export default function Workflows() {
               No workflows found yet.
             </p>
             <p className="text-sm text-slate-500 mb-4">
-              Click "Open Editor" above to create your first workflow, or workflows may not be accessible via API (this is okay - webhooks still work).
+              Configure workflows to automatically trigger on CRM events. Workflows are set up by your administrator and configured here.
             </p>
             <Link
-              to="/workflows/editor"
+              to="/workflows/configuration"
               className="inline-block rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
             >
-              Create Workflow →
+              Configure Workflows →
             </Link>
           </div>
         ) : (

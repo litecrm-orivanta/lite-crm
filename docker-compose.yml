@@ -31,6 +31,8 @@ services:
 
   n8n:
     image: n8nio/n8n:latest
+    # Note: n8n port is exposed but UI access is restricted to administrators only
+    # Users configure workflows via Lite CRM UI, not directly through n8n UI
     ports:
       - "5678:5678"
     environment:

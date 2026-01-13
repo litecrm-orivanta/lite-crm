@@ -8,12 +8,6 @@ export default function WorkflowEditor() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const n8nUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? "http://localhost:5678"
-    : window.location.protocol === 'https:' 
-      ? "https://workflow.orivanta.ai"
-      : "http://workflow.orivanta.ai";
-
   async function loadWorkflows() {
     setLoading(true);
     setError(null);
@@ -22,7 +16,7 @@ export default function WorkflowEditor() {
       setWorkflows(data);
     } catch (err: any) {
       console.error("Failed to load workflows:", err);
-      setError("Unable to load workflows. You can still access n8n directly to create and manage workflows.");
+      setError("Unable to load workflows. Workflows are managed and configured through the Workflow Configuration page.");
       setWorkflows([]);
     } finally {
       setLoading(false);
@@ -33,38 +27,24 @@ export default function WorkflowEditor() {
     loadWorkflows();
   }, []);
 
-  function openN8nInNewTab() {
-    window.open(n8nUrl, '_blank');
-  }
-
-  function openWorkflowInN8n(workflowId: string) {
-    window.open(`${n8nUrl}/workflow/${workflowId}`, '_blank');
-  }
-
   return (
     <AppLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold">Workflow Editor</h1>
+            <h1 className="text-2xl font-semibold">Workflows</h1>
             <p className="text-sm text-slate-600">
-              Create and manage automation workflows using n8n
+              View and manage automation workflows
             </p>
           </div>
           <div className="flex gap-2">
             <Link
               to="/workflows/configuration"
-              className="px-4 py-2 text-sm rounded border border-green-300 text-green-700 hover:bg-green-50 font-medium"
-            >
-              ⚙️ Configure
-            </Link>
-            <button
-              onClick={openN8nInNewTab}
               className="px-4 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 font-medium"
             >
-              Open n8n Editor →
-            </button>
+              ⚙️ Configure Workflows
+            </Link>
           </div>
         </div>
 
@@ -81,14 +61,14 @@ export default function WorkflowEditor() {
                 Workflow Management
               </p>
               <p className="text-sm text-blue-800 mb-2">
-                Click "Open n8n Editor" to create and edit workflows in n8n's powerful visual editor. 
-                Workflows created in n8n will automatically appear here once configured.
+                Workflows are automatically triggered when configured events occur in your CRM. 
+                Use the Configuration page to connect workflows to CRM events like lead creation, stage changes, and more.
               </p>
               <Link
-                to="/workflows/setup-guide"
+                to="/workflows/configuration"
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium underline"
               >
-                📖 View Detailed Setup Guide →
+                Go to Workflow Configuration →
               </Link>
             </div>
           </div>
@@ -113,23 +93,23 @@ export default function WorkflowEditor() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
               <h3 className="text-lg font-medium text-slate-900 mb-2">
-                No workflows found
+                No workflows configured
               </h3>
               <p className="text-sm text-slate-600 mb-6">
-                Get started by creating your first workflow in n8n. Click the button above to open n8n's visual editor.
+                Configure workflows to automatically trigger on CRM events. Workflows must be set up by your administrator and then configured here.
               </p>
-              <button
-                onClick={openN8nInNewTab}
+              <Link
+                to="/workflows/configuration"
                 className="inline-flex items-center px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 font-medium"
               >
-                Create Your First Workflow
-              </button>
+                Configure Workflows →
+              </Link>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Your Workflows</h2>
+              <h2 className="text-lg font-semibold">Available Workflows</h2>
               <button
                 onClick={loadWorkflows}
                 className="text-sm text-blue-600 hover:text-blue-700"
@@ -164,12 +144,14 @@ export default function WorkflowEditor() {
                         Updated: {new Date(workflow.updatedAt).toLocaleDateString()}
                       </div>
                     )}
-                    <button
-                      onClick={() => openWorkflowInN8n(workflow.id)}
-                      className="w-full mt-3 px-3 py-2 text-sm rounded border border-slate-300 text-slate-700 hover:bg-slate-50 font-medium"
-                    >
-                      Edit in n8n →
-                    </button>
+                    <div className="mt-3 pt-3 border-t border-slate-200">
+                      <Link
+                        to="/workflows/configuration"
+                        className="block w-full text-center px-3 py-2 text-sm rounded border border-blue-300 text-blue-700 hover:bg-blue-50 font-medium"
+                      >
+                        Configure Event Mapping →
+                      </Link>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -179,38 +161,24 @@ export default function WorkflowEditor() {
 
         {/* Integration Guide */}
         <div className="rounded-lg bg-slate-50 border border-slate-200 p-6">
-          <h3 className="font-semibold mb-4 text-slate-900">Getting Started with Workflows</h3>
+          <h3 className="font-semibold mb-4 text-slate-900">How Workflows Work</h3>
           <div className="space-y-4 text-sm text-slate-700">
             <div>
               <p className="font-medium mb-2 flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-semibold">1</span>
-                Create a Webhook Workflow
+                Workflows Are Created by Administrator
               </p>
-              <ul className="list-disc list-inside ml-8 space-y-1 text-slate-600">
-                <li>Open n8n editor (click button above)</li>
-                <li>Create a new workflow</li>
-                <li>Add a "Webhook" node (HTTP Method: POST)</li>
-                <li>Copy the webhook URL path (e.g., /webhook/your-workflow-id)</li>
-              </ul>
+              <p className="ml-8 text-slate-600">
+                Workflows are set up by your system administrator. Once created, they appear in your workflow list.
+              </p>
             </div>
             <div>
               <p className="font-medium mb-2 flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-semibold">2</span>
-                Configure Events (Optional)
+                Configure Event Mapping
               </p>
               <p className="ml-8 text-slate-600 mb-2">
-                Set environment variables to automatically trigger workflows on CRM events:
-              </p>
-              <ul className="list-disc list-inside ml-8 space-y-1 text-slate-600">
-                <li><code className="bg-slate-200 px-1 rounded">N8N_WORKFLOW_LEAD_CREATED=your-workflow-id</code></li>
-                <li><code className="bg-slate-200 px-1 rounded">N8N_WORKFLOW_LEAD_STAGE_CHANGED=your-workflow-id</code></li>
-                <li><code className="bg-slate-200 px-1 rounded">N8N_WORKFLOW_LEAD_ASSIGNED=your-workflow-id</code></li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-medium mb-2 flex items-center gap-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-semibold">3</span>
-                Available CRM Events
+                Connect workflows to CRM events using the Configuration page. Available events include:
               </p>
               <div className="ml-8 grid grid-cols-2 gap-2">
                 <div className="bg-white rounded p-2 border border-slate-200">
@@ -233,17 +201,24 @@ export default function WorkflowEditor() {
                 </div>
               </div>
             </div>
+            <div>
+              <p className="font-medium mb-2 flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-semibold">3</span>
+                Automatic Execution
+              </p>
+              <p className="ml-8 text-slate-600">
+                Once configured, workflows automatically execute when the mapped events occur in your CRM. 
+                No manual intervention required!
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Help Text */}
         <div className="rounded-lg bg-slate-50 border border-slate-200 p-4">
           <p className="text-sm text-slate-700">
-            <strong>Need Help?</strong> Check out the n8n documentation at{" "}
-            <a href="https://docs.n8n.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 underline">
-              docs.n8n.io
-            </a>
-            {" "}for workflow examples and tutorials.
+            <strong>Need Help?</strong> Contact your administrator to create new workflows or modify existing ones. 
+            Use the Configuration page to map workflows to CRM events.
           </p>
         </div>
       </div>

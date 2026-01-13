@@ -31,12 +31,6 @@ export default function WorkflowConfiguration() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newConfig, setNewConfig] = useState({ event: "", workflowId: "", useCustomUrl: false, webhookUrl: "", active: true });
 
-  const n8nUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? "http://localhost:5678"
-    : window.location.protocol === 'https:' 
-      ? "https://workflow.orivanta.ai"
-      : "http://workflow.orivanta.ai";
-
   async function loadConfigurations() {
     setLoading(true);
     setError(null);
@@ -106,7 +100,7 @@ export default function WorkflowConfiguration() {
           <div>
             <h1 className="text-2xl font-semibold">Workflow Configuration</h1>
             <p className="text-sm text-slate-600">
-              Connect CRM events to n8n workflows
+              Connect CRM events to automation workflows
             </p>
           </div>
           <Link
@@ -120,7 +114,7 @@ export default function WorkflowConfiguration() {
         {/* Info Banner */}
         <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
           <p className="text-sm text-blue-900 mb-2">
-            <strong>How It Works:</strong> Configure which n8n workflows should run when events occur in your CRM. 
+            <strong>How It Works:</strong> Configure which workflows should run when events occur in your CRM. 
             When a configured event happens (like a lead being created), Lite CRM automatically triggers the connected workflow.
           </p>
           <p className="text-xs text-blue-700">
@@ -159,7 +153,7 @@ export default function WorkflowConfiguration() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  n8n Workflow ID <span className="text-red-500">*</span>
+                  Workflow ID <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -169,7 +163,7 @@ export default function WorkflowConfiguration() {
                   className="w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono"
                 />
                 <p className="text-xs text-slate-500 mt-1">
-                  Get this from n8n workflow URL: {n8nUrl}/workflow/<strong>your-workflow-id</strong>
+                  Get this from your administrator. The workflow ID is typically a long alphanumeric string.
                 </p>
               </div>
               <div>
@@ -197,17 +191,17 @@ export default function WorkflowConfiguration() {
                       className="w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono"
                     />
                     <p className="text-xs text-slate-500 mt-1">
-                      Enter the full webhook URL from n8n (test or production). 
-                      Example: <code className="bg-slate-100 px-1 rounded">http://localhost:5678/webhook-test/lead-created</code>
+                      Enter the full webhook URL (get this from your administrator). 
+                      Example: <code className="bg-slate-100 px-1 rounded">https://your-workflow-server.com/webhook-test/lead-created</code>
                     </p>
                   </div>
                 ) : (
                   <div className="bg-blue-50 border border-blue-200 rounded p-3">
                     <p className="text-sm text-blue-900">
-                      <strong>Default URL format:</strong> {n8nUrl}/webhook/<strong>{"{workflowId}"}</strong>
+                      <strong>Default URL format:</strong> Will be automatically constructed using the workflow ID
                     </p>
                     <p className="text-xs text-blue-700 mt-1">
-                      The webhook URL will be automatically constructed using the workflow ID above.
+                      The webhook URL will be automatically generated using the workflow ID you provide above.
                     </p>
                   </div>
                 )}
@@ -249,7 +243,7 @@ export default function WorkflowConfiguration() {
                 No workflow configurations yet
               </h3>
               <p className="text-sm text-slate-600 mb-6">
-                Get started by connecting your first CRM event to an n8n workflow
+                Get started by connecting your first CRM event to a workflow
               </p>
               {availableEventsToAdd.length > 0 ? (
                 <button
@@ -313,21 +307,11 @@ export default function WorkflowConfiguration() {
                           {eventInfo?.description || config.event}
                         </p>
                         <div className="space-y-2 text-sm">
-                          <div className="flex items-center gap-4">
-                            <div>
-                              <span className="text-slate-500">Workflow ID: </span>
-                              <code className="bg-slate-100 px-2 py-1 rounded font-mono text-xs">
-                                {config.workflowId}
-                              </code>
-                            </div>
-                            <a
-                              href={`${n8nUrl}/workflow/${config.workflowId}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-700 text-xs"
-                            >
-                              Open in n8n →
-                            </a>
+                          <div>
+                            <span className="text-slate-500">Workflow ID: </span>
+                            <code className="bg-slate-100 px-2 py-1 rounded font-mono text-xs">
+                              {config.workflowId}
+                            </code>
                           </div>
                           <div>
                             <span className="text-slate-500">Webhook URL: </span>
@@ -337,7 +321,7 @@ export default function WorkflowConfiguration() {
                               </code>
                             ) : (
                               <code className="bg-slate-100 px-2 py-1 rounded font-mono text-xs text-slate-700">
-                                {n8nUrl}/webhook/{config.workflowId}
+                                /webhook/{config.workflowId}
                               </code>
                             )}
                             <span className="text-xs text-slate-400 ml-2">
@@ -372,19 +356,11 @@ export default function WorkflowConfiguration() {
               📖 Setup Guide
             </Link>
             <Link
-              to="/workflows/editor"
+              to="/workflows"
               className="px-4 py-2 text-sm rounded border border-slate-300 text-slate-700 hover:bg-white font-medium"
             >
-              Workflow Editor
+              View Workflows
             </Link>
-            <a
-              href={n8nUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 text-sm rounded border border-slate-300 text-slate-700 hover:bg-white font-medium"
-            >
-              Open n8n →
-            </a>
           </div>
         </div>
       </div>

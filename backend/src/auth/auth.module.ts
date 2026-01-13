@@ -7,7 +7,6 @@ import { JwtStrategy } from './jwt.strategy';
 import { MeController } from './auth.protected.controller';
 import { GoogleStrategy } from './google.strategy';
 import { PrismaModule } from '../prisma/prisma.module';
-import { WorkflowsModule } from '../workflows/workflows.module';
 
 @Module({
   imports: [
@@ -17,7 +16,6 @@ import { WorkflowsModule } from '../workflows/workflows.module';
       signOptions: { expiresIn: '7d' },
     }),
     PrismaModule,
-    WorkflowsModule,
   ],
   controllers: [AuthController, MeController],
   providers: [AuthService, JwtStrategy, GoogleStrategy],

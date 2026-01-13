@@ -274,39 +274,58 @@ export default function DocsPage() {
           <div className="prose prose-slate max-w-none">
             <h3 className="text-xl font-semibold text-slate-900 mt-6 mb-3">Introduction to Workflows</h3>
             <p className="text-slate-700 mb-3">
-              Lite CRM integrates with n8n, an open-source workflow automation tool, to help you automate repetitive tasks 
-              and integrate with other services.
+              Lite CRM includes a powerful built-in workflow automation system that allows you to automate repetitive tasks 
+              and integrate with various services without any external dependencies.
             </p>
 
-            <h3 className="text-xl font-semibold text-slate-900 mt-6 mb-3">Setting Up Your First Workflow</h3>
+            <h3 className="text-xl font-semibold text-slate-900 mt-6 mb-3">Creating Your First Workflow</h3>
             <ol className="list-decimal list-inside space-y-3 text-slate-700 ml-4">
-              <li>Navigate to "Workflows" → "Setup Guide" for detailed instructions</li>
-              <li>Click "Open n8n Editor" to access the n8n interface</li>
-              <li>Create a new workflow in n8n</li>
-              <li>Add a "Webhook" node as the trigger (HTTP Method: POST)</li>
-              <li>Copy the Webhook URL from n8n</li>
-              <li>Copy the Workflow ID from the n8n editor URL</li>
-              <li>Go to "Workflows" → "Configure" in Lite CRM</li>
-              <li>Add a new configuration:
+              <li>Navigate to "Workflows" from the main menu</li>
+              <li>Click "Create Workflow" or "Edit" on an existing workflow</li>
+              <li>You'll see the visual workflow editor with a node palette</li>
+              <li>Add a "Trigger" node and select an event (e.g., "Lead Created")</li>
+              <li>Add action nodes from the palette:
                 <ul className="list-disc list-inside ml-6 mt-2 space-y-1">
-                  <li>Select the event (e.g., "Lead Created")</li>
-                  <li>Paste the Workflow ID</li>
-                  <li>Choose to use default webhook URL or provide a custom one</li>
+                  <li><strong>Communication:</strong> Email, WhatsApp, Telegram, Slack, SMS</li>
+                  <li><strong>AI & Integration:</strong> ChatGPT, HTTP Request, Webhook</li>
+                  <li><strong>Logic & Control:</strong> Condition, Delay, Loop</li>
+                  <li><strong>Data:</strong> Set Variable, Transform, Filter, Merge, Split, Log</li>
                 </ul>
               </li>
-              <li>Activate the workflow in n8n (toggle switch in top-right)</li>
+              <li>Connect nodes by dragging from the blue handle (bottom) to green handle (top)</li>
+              <li>Configure each node by clicking on it and filling in the required fields</li>
+              <li>Use variables like <code className="bg-slate-100 px-1 rounded">{"{{data.lead.email}}"}</code> for dynamic data</li>
+              <li>Save your workflow and toggle it to "Active"</li>
             </ol>
 
-            <h3 className="text-xl font-semibold text-slate-900 mt-6 mb-3">Available Workflow Events</h3>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+              <p className="text-sm text-blue-800">
+                <strong>Tip:</strong> Before using channels like WhatsApp, Telegram, or ChatGPT, configure your API credentials in Settings → Integrations.
+              </p>
+            </div>
+
+            <h3 className="text-xl font-semibold text-slate-900 mt-6 mb-3">Available Workflow Triggers</h3>
             <ul className="list-disc list-inside space-y-2 text-slate-700 ml-4">
-              <li><strong>lead.created:</strong> Triggered when a new lead is added</li>
-              <li><strong>lead.updated:</strong> Triggered when lead details are modified</li>
-              <li><strong>lead.stage.changed:</strong> Triggered when a lead's stage changes</li>
-              <li><strong>lead.assigned:</strong> Triggered when a lead is assigned to a user</li>
-              <li><strong>task.created:</strong> Triggered when a new task is created</li>
-              <li><strong>task.completed:</strong> Triggered when a task is marked as complete</li>
-              <li><strong>user.invited:</strong> Triggered when a new user is invited</li>
+              <li><strong>Lead Created:</strong> Triggered when a new lead is added</li>
+              <li><strong>Lead Updated:</strong> Triggered when lead details are modified</li>
+              <li><strong>Lead Stage Changed:</strong> Triggered when a lead's stage changes</li>
+              <li><strong>Lead Assigned:</strong> Triggered when a lead is assigned to a user</li>
+              <li><strong>Task Created:</strong> Triggered when a new task is created</li>
+              <li><strong>Task Completed:</strong> Triggered when a task is marked as complete</li>
+              <li><strong>User Invited:</strong> Triggered when a new user is invited</li>
             </ul>
+
+            <h3 className="text-xl font-semibold text-slate-900 mt-6 mb-3">Configuring Integrations</h3>
+            <p className="text-slate-700 mb-3">
+              Before using communication channels or AI features, configure your API credentials:
+            </p>
+            <ol className="list-decimal list-inside space-y-3 text-slate-700 ml-4">
+              <li>Go to "Settings" → "Integrations" from the main menu</li>
+              <li>Click "Configure" on the integration you want to set up</li>
+              <li>Enter your API credentials (e.g., WhatsApp API key, Telegram bot token, ChatGPT API key)</li>
+              <li>Click "Save" - credentials are encrypted and stored securely</li>
+              <li>You can now use these integrations in your workflows without entering credentials each time</li>
+            </ol>
 
             <h3 className="text-xl font-semibold text-slate-900 mt-6 mb-3">Viewing Workflow Executions</h3>
             <p className="text-slate-700 mb-3">
@@ -314,9 +333,24 @@ export default function DocsPage() {
             </p>
             <ol className="list-decimal list-inside space-y-3 text-slate-700 ml-4">
               <li>Go to "Workflows" page</li>
-              <li>Click on a workflow to view its execution history</li>
-              <li>See recent executions, their status, and execution data</li>
+              <li>Click "View Executions" on any workflow</li>
+              <li>See execution history with status (SUCCESS, FAILED, RUNNING, PENDING)</li>
+              <li>View input data (what triggered the workflow) and output data (results)</li>
+              <li>Check error messages for failed executions</li>
             </ol>
+
+            <h3 className="text-xl font-semibold text-slate-900 mt-6 mb-3">Using Variables in Workflows</h3>
+            <p className="text-slate-700 mb-3">
+              You can use dynamic variables in workflow nodes to access data from triggers and previous nodes:
+            </p>
+            <ul className="list-disc list-inside space-y-2 text-slate-700 ml-4">
+              <li><code className="bg-slate-100 px-1 rounded">{"{{data.lead.name}}"}</code> - Lead name</li>
+              <li><code className="bg-slate-100 px-1 rounded">{"{{data.lead.email}}"}</code> - Lead email</li>
+              <li><code className="bg-slate-100 px-1 rounded">{"{{data.lead.phone}}"}</code> - Lead phone</li>
+              <li><code className="bg-slate-100 px-1 rounded">{"{{data.lead.stage}}"}</code> - Lead stage</li>
+              <li><code className="bg-slate-100 px-1 rounded">{"{{data.lead.company}}"}</code> - Lead company</li>
+              <li><code className="bg-slate-100 px-1 rounded">{"{{variableName}}"}</code> - Custom variables set by "Set Variable" nodes</li>
+            </ul>
           </div>
         </section>
 

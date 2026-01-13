@@ -48,8 +48,8 @@ export class LeadsService {
       },
     });
 
-    // Trigger workflow for lead creation
-    await this.workflows.triggerByEvent('lead.created', workspaceId, {
+    // Trigger workflow for lead creation (non-blocking)
+    this.workflows.triggerByEvent('lead.created', workspaceId, {
       lead: {
         id: lead.id,
         name: lead.name,
@@ -61,6 +61,9 @@ export class LeadsService {
         stage: lead.stage,
         owner: lead.owner,
       },
+    }).catch((error) => {
+      // Log but don't fail lead creation if workflow fails
+      console.error('Workflow trigger failed (non-blocking):', error);
     });
 
     return lead;

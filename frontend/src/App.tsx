@@ -12,6 +12,7 @@ import WorkflowEditor from "./pages/WorkflowEditor";
 import WorkflowSetupGuide from "./pages/WorkflowSetupGuide";
 import WorkflowConfiguration from "./pages/WorkflowConfiguration";
 import DocsPage from "./pages/DocsPage";
+import Settings from "./pages/Settings";
 import { useAuth } from "./auth/AuthContext";
 
 export default function App() {
@@ -55,6 +56,10 @@ export default function App() {
         path="/workflows/editor"
         element={token ? <WorkflowEditor /> : <Navigate to="/login" />}
       />
+      <Route
+        path="/workflows/editor/:id"
+        element={token ? <WorkflowEditor /> : <Navigate to="/login" />}
+      />
 
       <Route
         path="/workflows/setup-guide"
@@ -69,6 +74,11 @@ export default function App() {
       <Route
         path="/docs"
         element={<DocsPage />}
+      />
+
+      <Route
+        path="/settings"
+        element={token ? <Settings /> : <Navigate to="/login" />}
       />
     </Routes>
   );

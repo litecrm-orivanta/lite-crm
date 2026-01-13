@@ -14,11 +14,6 @@ export class MeController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('n8n-ready')
-  async checkN8nReady(@CurrentUser() user: { userId: string; workspaceId: string }) {
-    const isReady = await this.authService.isN8nReady(user.workspaceId);
-    return { n8nReady: isReady };
-  }
 
   @UseGuards(JwtAuthGuard)
   @Get('workspace')

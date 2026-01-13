@@ -11,11 +11,8 @@ import {
   AuthProvider,
   WorkspaceType,
   UserRole,
-  N8nInstanceType,
 } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
-import { WorkflowsService } from '../workflows/workflows.service';
-import { N8nUserService } from '../workflows/n8n-user.service';
 
 type SignupPayload = {
   email: string;
@@ -27,7 +24,6 @@ type SignupPayload = {
   workspaceName?: string;
   teamSize?: string;
   inviteId?: string;
-  n8nInstanceType?: 'SHARED' | 'DEDICATED';
 };
 
 @Injectable()
@@ -35,8 +31,6 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
-    private workflowsService: WorkflowsService,
-    private n8nUserService: N8nUserService,
   ) {}
 
   // 🔑 FIXED: JWT now carries role + workspaceId
@@ -76,7 +70,6 @@ export class AuthService {
       workspaceName,
       teamSize,
       inviteId,
-      n8nInstanceType = 'SHARED', // Default to SHARED
     } = payload;
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -141,8 +134,6 @@ export class AuthService {
               trialStartDate,
               trialEndDate,
               isTrialActive: true,
-              n8nInstanceType:
-                (n8nInstanceType as N8nInstanceType) || N8nInstanceType.SHARED,
             }
           : {
               name: `${name}'s Workspace`,
@@ -151,8 +142,6 @@ export class AuthService {
               trialStartDate,
               trialEndDate,
               isTrialActive: true,
-              n8nInstanceType:
-                (n8nInstanceType as N8nInstanceType) || N8nInstanceType.SHARED,
             };
 
       const user = await this.prisma.user.create({
@@ -168,13 +157,6 @@ export class AuthService {
         },
       });
 
-      // Auto-setup n8n for admin users
-      if (user.role === UserRole.ADMIN) {
-        await this.setupN8nForWorkspace(user.workspaceId).catch((error) => {
-          // Don't fail signup if n8n setup fails - it's optional
-          console.warn(`Failed to setup n8n for workspace ${user.workspaceId}:`, error);
-        });
-      }
 
       return this.sign({
         id: user.id,
@@ -250,62 +232,6 @@ export class AuthService {
     });
   }
 
-  /**
-   * Setup n8n for a workspace based on instance type
-   * - SHARED: Creates n8n user account in shared instance
-   * - DEDICATED: Reserves instance (implementation pending)
-   */
-  private async setupN8nForWorkspace(workspaceId: string): Promise<void> {
-    try {
-      const workspace = await this.prisma.workspace.findUnique({
-        where: { id: workspaceId },
-        select: { n8nInstanceType: true, name: true },
-      });
-
-      if (!workspace) {
-        throw new Error('Workspace not found');
-      }
-
-      if (workspace.n8nInstanceType === 'SHARED') {
-        // Create n8n user account in shared instance
-        const n8nUser = await this.n8nUserService.createUserForWorkspace(
-          workspaceId,
-          workspace.name,
-        );
-
-        if (n8nUser) {
-          // Store n8n user mapping (password should be encrypted in production)
-          await this.prisma.workspace.update({
-            where: { id: workspaceId },
-            data: {
-              n8nSetupAt: new Date(),
-              n8nUserId: n8nUser.userId,
-              n8nUserEmail: n8nUser.email,
-              // TODO: Store password encrypted
-              // n8nUserPassword: await encrypt(n8nUser.password),
-            },
-          });
-        }
-      } else if (workspace.n8nInstanceType === 'DEDICATED') {
-        // TODO: Implement dedicated instance provisioning
-        // For now, just mark as setup (dedicated instances will be implemented separately)
-        await this.prisma.workspace.update({
-          where: { id: workspaceId },
-          data: { n8nSetupAt: new Date() },
-        });
-        console.warn(
-          `DEDICATED n8n instance requested for workspace ${workspaceId} - provisioning not yet implemented`,
-        );
-      }
-    } catch (error) {
-      // n8n setup is optional - don't fail signup if it fails
-      console.warn(
-        `Failed to setup n8n for workspace ${workspaceId}:`,
-        error,
-      );
-      throw error;
-    }
-  }
 
   /**
    * Get workspace information including trial status
@@ -348,31 +274,4 @@ export class AuthService {
     };
   }
 
-  /**
-   * Check if n8n is ready/accessible
-   * Simplified: Just check if n8n service is accessible
-   */
-  async isN8nReady(workspaceId: string): Promise<boolean> {
-    try {
-      // Simple check: try to access n8n
-      const n8nUrl = process.env.N8N_URL || 'http://n8n:5678';
-      
-      // Create timeout controller
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-      
-      const response = await fetch(`${n8nUrl}/`, {
-        method: 'GET',
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      // If we get any response (even 401/403), n8n is accessible
-      return response.ok || response.status === 401 || response.status === 403;
-    } catch (error) {
-      // n8n is not accessible (timeout or connection error)
-      return false;
-    }
-  }
 }

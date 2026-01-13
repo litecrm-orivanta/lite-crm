@@ -1,143 +1,186 @@
 import {
   Controller,
-  Post,
   Get,
-  Body,
-  Param,
-  UseGuards,
-  Query,
+  Post,
   Put,
   Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  BadRequestException,
+  Logger,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
+import { WorkflowsService } from './workflows.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { WorkflowsService, WorkflowEvent } from './workflows.service';
-import { WorkflowConfigurationService } from './workflow-configuration.service';
 
 @Controller('workflows')
+@UseGuards(JwtAuthGuard)
 export class WorkflowsController {
-  constructor(
-    private readonly workflowsService: WorkflowsService,
-    private readonly workflowConfigService: WorkflowConfigurationService,
-  ) {}
+  private readonly logger = new Logger(WorkflowsController.name);
+
+  constructor(private workflowsService: WorkflowsService) {}
+
+  /**
+   * List all workflows for the workspace
+   */
+  @Get()
+  async listWorkflows(@CurrentUser() user: { userId: string; workspaceId: string }) {
+    try {
+      this.logger.log(`Listing workflows for workspace: ${user.workspaceId}`);
+      const workflows = await this.workflowsService.listWorkflows(user.workspaceId);
+      this.logger.log(`Found ${workflows.length} workflows`);
+      return workflows;
+    } catch (error) {
+      this.logger.error(`Failed to list workflows: ${error instanceof Error ? error.message : String(error)}`, error instanceof Error ? error.stack : undefined);
+      throw new HttpException(
+        'Failed to load workflows',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Get a single workflow
+   */
+  @Get(':id')
+  async getWorkflow(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string; workspaceId: string },
+  ) {
+    try {
+      this.logger.log(`Getting workflow ${id} for workspace: ${user.workspaceId}`);
+      const workflow = await this.workflowsService.getWorkflow(id, user.workspaceId);
+      this.logger.log(`Workflow loaded: ${workflow.name} with ${workflow.nodes?.length || 0} nodes and ${workflow.edges?.length || 0} edges`);
+      return workflow;
+    } catch (error) {
+      this.logger.error(`Failed to get workflow ${id}: ${error instanceof Error ? error.message : String(error)}`, error instanceof Error ? error.stack : undefined);
+      if (error instanceof Error && error.message === 'Workflow not found') {
+        throw new HttpException('Workflow not found', HttpStatus.NOT_FOUND);
+      }
+      throw new HttpException(
+        'Failed to load workflow',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Create a new workflow
+   */
+  @Post()
+  async createWorkflow(
+    @Body() body: any,
+    @CurrentUser() user: { userId: string; workspaceId: string },
+  ) {
+    try {
+      this.logger.log(`Creating workflow "${body.name}" for workspace: ${user.workspaceId}`);
+      
+      if (!body.name) {
+        throw new BadRequestException('Workflow name is required');
+      }
+
+      const workflow = await this.workflowsService.createWorkflow(user.workspaceId, {
+        name: body.name,
+        description: body.description,
+        nodes: body.nodes || [],
+        edges: body.edges || [],
+      });
+      
+      this.logger.log(`Workflow created successfully: ${workflow.id}`);
+      return workflow;
+    } catch (error) {
+      this.logger.error(`Failed to create workflow: ${error instanceof Error ? error.message : String(error)}`, error instanceof Error ? error.stack : undefined);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Failed to create workflow',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Update a workflow
+   */
+  @Put(':id')
+  async updateWorkflow(
+    @Param('id') id: string,
+    @Body() body: any,
+    @CurrentUser() user: { userId: string; workspaceId: string },
+  ) {
+    try {
+      this.logger.log(`Updating workflow ${id} for workspace: ${user.workspaceId}`);
+      const workflow = await this.workflowsService.updateWorkflow(id, user.workspaceId, {
+        name: body.name,
+        description: body.description,
+        active: body.active,
+        nodes: body.nodes || [],
+        edges: body.edges || [],
+      });
+      this.logger.log(`Workflow updated successfully: ${id}`);
+      return workflow;
+    } catch (error) {
+      this.logger.error(`Failed to update workflow ${id}: ${error instanceof Error ? error.message : String(error)}`, error instanceof Error ? error.stack : undefined);
+      if (error instanceof Error && error.message === 'Workflow not found') {
+        throw new HttpException('Workflow not found', HttpStatus.NOT_FOUND);
+      }
+      throw new HttpException(
+        'Failed to update workflow',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Delete a workflow
+   */
+  @Delete(':id')
+  async deleteWorkflow(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string; workspaceId: string },
+  ) {
+    await this.workflowsService.deleteWorkflow(id, user.workspaceId);
+    return { success: true };
+  }
+
+  /**
+   * Get workflow executions
+   */
+  @Get(':id/executions')
+  async getWorkflowExecutions(
+    @Param('id') id: string,
+    @Query('limit') limit: string,
+    @CurrentUser() user: { userId: string; workspaceId: string },
+  ) {
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+    return this.workflowsService.getWorkflowExecutions(id, user.workspaceId, limitNum);
+  }
 
   /**
    * Manually trigger a workflow
    */
-  @Post('trigger/:workflowId')
-  @UseGuards(JwtAuthGuard)
-  async trigger(
-    @CurrentUser() user: { userId: string; workspaceId: string },
-    @Param('workflowId') workflowId: string,
-    @Body() body: { event: WorkflowEvent; data: Record<string, any> },
-  ) {
-    await this.workflowsService.triggerWorkflow(workflowId, {
-      event: body.event,
-      workspaceId: user.workspaceId,
-      data: body.data,
-    });
-    return { success: true };
-  }
-
-  /**
-   * List all available workflows
-   */
-  @Get()
-  @UseGuards(JwtAuthGuard)
-  async list(@CurrentUser() user: { userId: string; workspaceId: string }) {
-    const workflows = await this.workflowsService.listWorkflows();
-    return { workflows };
-  }
-
-  /**
-   * Get workflow execution history
-   */
-  @Get(':workflowId/executions')
-  @UseGuards(JwtAuthGuard)
-  async getExecutions(
-    @CurrentUser() user: { userId: string; workspaceId: string },
-    @Param('workflowId') workflowId: string,
-    @Query('limit') limit?: string,
-  ) {
-    const executions = await this.workflowsService.getWorkflowExecutions(
-      workflowId,
-    );
-    const limitNum = limit ? parseInt(limit, 10) : 10;
-    return { executions: executions.slice(0, limitNum) };
-  }
-
-  /**
-   * Get workflow configurations for the workspace
-   */
-  @Get('config')
-  @UseGuards(JwtAuthGuard)
-  async getConfigurations(
+  @Post(':id/trigger')
+  async triggerWorkflow(
+    @Param('id') id: string,
+    @Body() body: { event: string; data: any },
     @CurrentUser() user: { userId: string; workspaceId: string },
   ) {
-    const configs = await this.workflowConfigService.getWorkflowConfigurations(
+    if (!body.event || !body.data) {
+      throw new BadRequestException('Event and data are required');
+    }
+
+    const executionId = await this.workflowsService.triggerWorkflow(
+      id,
       user.workspaceId,
-    );
-    return { configurations: configs };
-  }
-
-  /**
-   * Create or update workflow configuration
-   */
-  @Put('config')
-  @UseGuards(JwtAuthGuard)
-  async upsertConfiguration(
-    @CurrentUser() user: { userId: string; workspaceId: string },
-    @Body() body: { event: string; workflowId: string; useCustomUrl: boolean; webhookUrl?: string | null; active?: boolean },
-  ) {
-    const config = await this.workflowConfigService.upsertWorkflowConfiguration(
-      user.workspaceId,
-      body.event,
-      body.workflowId,
-      body.useCustomUrl || false,
-      body.useCustomUrl ? (body.webhookUrl || null) : null,
-      body.active !== undefined ? body.active : true,
-    );
-    return { configuration: config };
-  }
-
-  /**
-   * Delete workflow configuration
-   */
-  @Delete('config/:event')
-  @UseGuards(JwtAuthGuard)
-  async deleteConfiguration(
-    @CurrentUser() user: { userId: string; workspaceId: string },
-    @Param('event') event: string,
-  ) {
-    await this.workflowConfigService.deleteWorkflowConfiguration(
-      user.workspaceId,
-      decodeURIComponent(event),
-    );
-    return { success: true };
-  }
-
-  /**
-   * Webhook endpoint for n8n to call back to CRM
-   * This allows n8n workflows to update CRM data
-   */
-  @Post('webhook/:token')
-  async webhook(
-    @Param('token') token: string,
-    @Body() body: Record<string, any>,
-  ) {
-    // TODO: Validate token (store in env or database)
-    // For now, this is a simple webhook receiver
-    // You can add authentication/authorization here
-
-    this.workflowsService['logger'].log(
-      `Received webhook from n8n: ${token}`,
-      body,
+      body.event as any,
+      body.data,
     );
 
-    // Process webhook data
-    // Example: Update lead, create task, etc.
-    // This will be handled by specific webhook handlers
-
-    return { success: true, received: body };
+    return { executionId };
   }
 }

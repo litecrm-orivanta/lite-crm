@@ -42,6 +42,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 </Link>
               )}
 
+              <Link to="/settings" className={isActive("/settings")}>
+                Settings
+              </Link>
+
               <Link to="/docs" className={isActive("/docs")}>
                 Docs
               </Link>

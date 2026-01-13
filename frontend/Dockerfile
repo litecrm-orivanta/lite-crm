@@ -4,10 +4,10 @@ FROM node:20-alpine AS build
 WORKDIR /app
 
 # Copy package files
-COPY package.json ./
+COPY package.json package-lock.json* ./
 
-# Install dependencies (use npm install to avoid package-lock.json issues)
-RUN npm install --legacy-peer-deps
+# Install dependencies
+RUN npm ci || npm install --legacy-peer-deps
 
 # Copy source code
 COPY . .

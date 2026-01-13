@@ -7,7 +7,9 @@ export default function WorkflowSetupGuide() {
 
   const n8nUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? "http://localhost:5678"
-    : `http://${window.location.hostname}:5678`;
+    : window.location.protocol === 'https:' 
+      ? "https://workflow.orivanta.ai"
+      : "http://workflow.orivanta.ai";
 
   function openN8nInNewTab() {
     window.open(n8nUrl, '_blank');

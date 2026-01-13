@@ -10,7 +10,9 @@ export default function WorkflowEditor() {
 
   const n8nUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? "http://localhost:5678"
-    : `http://${window.location.hostname}:5678`;
+    : window.location.protocol === 'https:' 
+      ? "https://workflow.orivanta.ai"
+      : "http://workflow.orivanta.ai";
 
   async function loadWorkflows() {
     setLoading(true);

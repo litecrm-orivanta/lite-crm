@@ -97,3 +97,61 @@ export async function deleteLead(id: string): Promise<void> {
     method: "DELETE",
   });
 }
+
+// Phase 1 & 2: New features
+export async function exportLeadsToCSV(filters?: {
+  stage?: string;
+  source?: string;
+  region?: string;
+  search?: string;
+}): Promise<Blob> {
+  const params = new URLSearchParams();
+  if (filters?.stage) params.append('stage', filters.stage);
+  if (filters?.source) params.append('source', filters.source);
+  if (filters?.region) params.append('region', filters.region);
+  if (filters?.search) params.append('search', filters.search);
+
+  const API_BASE = import.meta.env.VITE_API_URL || "/api";
+  const token = localStorage.getItem('token');
+  const response = await fetch(`${API_BASE}/leads/export/csv?${params.toString()}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to export leads');
+  }
+
+  return response.blob();
+}
+
+export async function bulkUpdateLeads(leadIds: string[], updates: {
+  stage?: string;
+  ownerId?: string;
+  source?: string;
+  region?: string;
+}) {
+  return apiFetch('/leads/bulk/update', {
+    method: 'POST',
+    body: JSON.stringify({ leadIds, updates }),
+  });
+}
+
+export async function bulkDeleteLeads(leadIds: string[]) {
+  return apiFetch('/leads/bulk/delete', {
+    method: 'POST',
+    body: JSON.stringify({ leadIds }),
+  });
+}
+
+export async function bulkAssignLeads(leadIds: string[], ownerId: string) {
+  return apiFetch('/leads/bulk/assign', {
+    method: 'POST',
+    body: JSON.stringify({ leadIds, ownerId }),
+  });
+}
+
+export async function getKanbanView() {
+  return apiFetch('/leads/kanban');
+}

@@ -6,6 +6,7 @@ type AuthContextType = {
   token: string | null
   email: string | null
   role: UserRole
+  isSuperAdmin: boolean
   onboarded: boolean
   login: (token: string) => void
   signup: (token: string) => void
@@ -13,15 +14,16 @@ type AuthContextType = {
   logout: () => void
 }
 
-function parseToken(token: string): { email: string | null; role: UserRole } {
+function parseToken(token: string): { email: string | null; role: UserRole; isSuperAdmin: boolean } {
   try {
     const payload = JSON.parse(atob(token.split(".")[1]))
     return {
       email: payload.email || null,
       role: payload.role || null,
+      isSuperAdmin: payload.isSuperAdmin || false,
     }
   } catch {
-    return { email: null, role: null }
+    return { email: null, role: null, isSuperAdmin: false }
   }
 }
 
@@ -31,11 +33,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const storedToken = localStorage.getItem("token")
   const storedOnboarded = localStorage.getItem("onboarded") === "true"
 
-  const parsed = storedToken ? parseToken(storedToken) : { email: null, role: null }
+  const parsed = storedToken ? parseToken(storedToken) : { email: null, role: null, isSuperAdmin: false }
 
   const [token, setToken] = useState<string | null>(storedToken)
   const [email, setEmail] = useState<string | null>(parsed.email)
   const [role, setRole] = useState<UserRole>(parsed.role)
+  const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(parsed.isSuperAdmin)
   const [onboarded, setOnboarded] = useState<boolean>(
     storedOnboarded || !!storedToken
   )
@@ -46,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(t)
     setEmail(parsed.email)
     setRole(parsed.role)
+    setIsSuperAdmin(parsed.isSuperAdmin)
   }
 
   const signup = (t: string) => {
@@ -55,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(t)
     setEmail(parsed.email)
     setRole(parsed.role)
+    setIsSuperAdmin(parsed.isSuperAdmin)
     setOnboarded(true)
   }
 
@@ -69,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null)
     setEmail(null)
     setRole(null)
+    setIsSuperAdmin(false)
     setOnboarded(false)
     window.location.href = "/login"
   }
@@ -79,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token,
         email,
         role,
+        isSuperAdmin,
         onboarded,
         login,
         signup,

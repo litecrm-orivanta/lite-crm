@@ -13,6 +13,12 @@ import WorkflowSetupGuide from "./pages/WorkflowSetupGuide";
 import WorkflowConfiguration from "./pages/WorkflowConfiguration";
 import DocsPage from "./pages/DocsPage";
 import Settings from "./pages/Settings";
+import AdminDashboard from "./pages/AdminDashboard";
+import WorkspaceAdminDashboard from "./pages/WorkspaceAdminDashboard";
+import BillingPage from "./pages/BillingPage";
+import Reports from "./pages/Reports";
+import Calendar from "./pages/Calendar";
+import Kanban from "./pages/Kanban";
 import { useAuth } from "./auth/AuthContext";
 
 export default function App() {
@@ -79,6 +85,36 @@ export default function App() {
       <Route
         path="/settings"
         element={token ? <Settings /> : <Navigate to="/login" />}
+      />
+
+      <Route
+        path="/admin"
+        element={token ? <AdminDashboard /> : <Navigate to="/login" />}
+      />
+
+      <Route
+        path="/workspace-admin"
+        element={token ? <WorkspaceAdminDashboard /> : <Navigate to="/login" />}
+      />
+
+      <Route
+        path="/billing"
+        element={token ? <BillingPage /> : <Navigate to="/login" />}
+      />
+
+      <Route
+        path="/reports"
+        element={token ? <Reports /> : <Navigate to="/login" />}
+      />
+
+      <Route
+        path="/calendar"
+        element={token ? <Calendar /> : <Navigate to="/login" />}
+      />
+
+      <Route
+        path="/kanban"
+        element={token ? <Kanban /> : <Navigate to="/login" />}
       />
     </Routes>
   );

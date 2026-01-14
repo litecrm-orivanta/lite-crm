@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import AppLayout from "@/layouts/AppLayout";
-import { Lead, listLeads, createLead, updateLeadStage, deleteLead } from "@/api/leads";
+import { Lead, listLeads, createLead, updateLeadStage, deleteLead, exportLeadsToCSV, bulkUpdateLeads, bulkDeleteLeads, bulkAssignLeads } from "@/api/leads";
+import { listUsers } from "@/api/users";
+import { listSavedFilters, createSavedFilter, deleteSavedFilter, SavedFilter } from "@/api/saved-filters";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/auth/AuthContext";
 
 const STAGES = ["NEW", "CONTACTED", "WON", "LOST"];
 const SOURCES = ["Website", "Ads", "Referral", "Manual", "Import"];
@@ -12,9 +15,22 @@ const phoneRegex = /^[0-9]{7,15}$/;
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { isSuperAdmin } = useAuth();
+
+  // Redirect super admins to admin dashboard
+  if (isSuperAdmin) {
+    return <Navigate to="/admin" replace />;
+  }
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [bulkAction, setBulkAction] = useState<'stage' | 'assign' | 'delete' | null>(null);
+  const [bulkStage, setBulkStage] = useState("");
+  const [bulkOwnerId, setBulkOwnerId] = useState("");
 
   // create form
   const [name, setName] = useState("");
@@ -96,7 +112,149 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadLeads();
+    loadSavedFilters();
+    loadUsers();
   }, []);
+
+  useEffect(() => {
+    setShowBulkActions(selectedLeads.size > 0);
+  }, [selectedLeads]);
+
+  async function loadSavedFilters() {
+    try {
+      const filters = await listSavedFilters();
+      setSavedFilters(filters);
+    } catch (err) {
+      console.error("Failed to load saved filters:", err);
+    }
+  }
+
+  async function loadUsers() {
+    try {
+      const userList = await listUsers();
+      setUsers(userList);
+    } catch (err) {
+      console.error("Failed to load users:", err);
+    }
+  }
+
+  async function handleExport() {
+    try {
+      const blob = await exportLeadsToCSV({
+        stage: stageFilter !== "ALL" ? stageFilter : undefined,
+        source: sourceFilter !== "ALL" ? sourceFilter : undefined,
+        region: regionFilter || undefined,
+        search: query || undefined,
+      });
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `leads-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      alert(`Failed to export: ${err.message || "Unknown error"}`);
+    }
+  }
+
+  async function handleSaveFilter() {
+    const name = prompt("Enter a name for this filter:");
+    if (!name) return;
+
+    try {
+      await createSavedFilter(name, {
+        query,
+        stageFilter,
+        sourceFilter,
+        regionFilter,
+      });
+      await loadSavedFilters();
+      alert("Filter saved successfully!");
+    } catch (err: any) {
+      alert(`Failed to save filter: ${err.message || "Unknown error"}`);
+    }
+  }
+
+  async function loadSavedFilter(filter: SavedFilter) {
+    const filters = filter.filters as any;
+    setQuery(filters.query || "");
+    setStageFilter(filters.stageFilter || "ALL");
+    setSourceFilter(filters.sourceFilter || "ALL");
+    setRegionFilter(filters.regionFilter || "");
+  }
+
+  function toggleSelectLead(leadId: string) {
+    setSelectedLeads(prev => {
+      const next = new Set(prev);
+      if (next.has(leadId)) {
+        next.delete(leadId);
+      } else {
+        next.add(leadId);
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedLeads.size === filteredLeads.length) {
+      setSelectedLeads(new Set());
+    } else {
+      setSelectedLeads(new Set(filteredLeads.map(l => l.id)));
+    }
+  }
+
+  async function handleBulkUpdate() {
+    if (selectedLeads.size === 0) return;
+
+    try {
+      const updates: any = {};
+      if (bulkStage) updates.stage = bulkStage;
+      if (bulkOwnerId) updates.ownerId = bulkOwnerId;
+
+      await bulkUpdateLeads(Array.from(selectedLeads), updates);
+      setSelectedLeads(new Set());
+      setBulkAction(null);
+      setBulkStage("");
+      setBulkOwnerId("");
+      await loadLeads();
+      alert("Leads updated successfully!");
+    } catch (err: any) {
+      alert(`Failed to update leads: ${err.message || "Unknown error"}`);
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (selectedLeads.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedLeads.size} lead(s)?`)) return;
+
+    try {
+      await bulkDeleteLeads(Array.from(selectedLeads));
+      setSelectedLeads(new Set());
+      setBulkAction(null);
+      await loadLeads();
+      alert("Leads deleted successfully!");
+    } catch (err: any) {
+      alert(`Failed to delete leads: ${err.message || "Unknown error"}`);
+    }
+  }
+
+  async function handleBulkAssign() {
+    if (selectedLeads.size === 0 || !bulkOwnerId) return;
+
+    try {
+      await bulkAssignLeads(Array.from(selectedLeads), bulkOwnerId);
+      setSelectedLeads(new Set());
+      setBulkAction(null);
+      setBulkOwnerId("");
+      await loadLeads();
+      alert("Leads assigned successfully!");
+    } catch (err: any) {
+      alert(`Failed to assign leads: ${err.message || "Unknown error"}`);
+    }
+  }
 
   const filteredLeads = useMemo(() => {
     return leads.filter((l) => {
@@ -149,12 +307,20 @@ export default function Dashboard() {
               Manage and track your sales leads
             </p>
           </div>
-          <Link
-            to="/workflows"
-            className="px-5 py-2.5 text-sm rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 font-medium shadow-md hover:shadow-lg transition-all"
-          >
-            Workflows
-          </Link>
+          <div className="flex gap-3">
+            <button
+              onClick={handleExport}
+              className="px-4 py-2.5 text-sm rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-medium shadow-sm hover:shadow transition-all"
+            >
+              Export CSV
+            </button>
+            <Link
+              to="/workflows"
+              className="px-5 py-2.5 text-sm rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 font-medium shadow-md hover:shadow-lg transition-all"
+            >
+              Workflows
+            </Link>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -256,6 +422,32 @@ export default function Dashboard() {
 
         {/* FILTERS */}
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200/60 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-slate-700">Filters</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveFilter}
+                className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+              >
+                Save Filter
+              </button>
+              {savedFilters.length > 0 && (
+                <select
+                  onChange={(e) => {
+                    const filter = savedFilters.find(f => f.id === e.target.value);
+                    if (filter) loadSavedFilter(filter);
+                  }}
+                  className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-white"
+                  defaultValue=""
+                >
+                  <option value="">Load Saved Filter...</option>
+                  {savedFilters.map(f => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <input
               type="text"
@@ -294,6 +486,129 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* BULK ACTIONS TOOLBAR */}
+        {showBulkActions && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-blue-900">
+                {selectedLeads.size} lead(s) selected
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setBulkAction('stage')}
+                  className="px-3 py-1.5 text-xs font-medium bg-white text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  Change Stage
+                </button>
+                <button
+                  onClick={() => setBulkAction('assign')}
+                  className="px-3 py-1.5 text-xs font-medium bg-white text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  Assign Owner
+                </button>
+                <button
+                  onClick={() => setBulkAction('delete')}
+                  className="px-3 py-1.5 text-xs font-medium bg-white text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setSelectedLeads(new Set());
+                setBulkAction(null);
+              }}
+              className="text-sm text-slate-600 hover:text-slate-900"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {/* BULK ACTION MODALS */}
+        {bulkAction === 'stage' && (
+          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-4 flex items-center gap-4">
+            <select
+              value={bulkStage}
+              onChange={(e) => setBulkStage(e.target.value)}
+              className="px-3 py-2 border border-slate-300 rounded-lg"
+            >
+              <option value="">Select Stage</option>
+              {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <button
+              onClick={handleBulkUpdate}
+              disabled={!bulkStage}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Update
+            </button>
+            <button
+              onClick={() => {
+                setBulkAction(null);
+                setBulkStage("");
+              }}
+              className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {bulkAction === 'assign' && (
+          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-4 flex items-center gap-4">
+            <select
+              value={bulkOwnerId}
+              onChange={(e) => setBulkOwnerId(e.target.value)}
+              className="px-3 py-2 border border-slate-300 rounded-lg"
+            >
+              <option value="">Select Owner</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>{u.name || u.email}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleBulkAssign}
+              disabled={!bulkOwnerId}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Assign
+            </button>
+            <button
+              onClick={() => {
+                setBulkAction(null);
+                setBulkOwnerId("");
+              }}
+              className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {bulkAction === 'delete' && (
+          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-4 flex items-center gap-4">
+            <span className="text-sm text-slate-700">
+              Are you sure you want to delete {selectedLeads.size} lead(s)?
+            </span>
+            <button
+              onClick={handleBulkDelete}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => {
+                setBulkAction(null);
+              }}
+              className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
         {/* LEADS TABLE */}
         {loading ? (
           <div className="bg-white rounded-2xl shadow-lg border border-slate-200/60 p-12 text-center">
@@ -314,6 +629,14 @@ export default function Dashboard() {
               <table className="w-full text-sm">
                 <thead className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
                   <tr>
+                    <th className="px-6 py-4 text-left font-semibold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={selectedLeads.size === filteredLeads.length && filteredLeads.length > 0}
+                        onChange={toggleSelectAll}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </th>
                     <th className="px-6 py-4 text-left font-semibold text-slate-700">Lead</th>
                     <th className="px-6 py-4 text-left font-semibold text-slate-700">Contact</th>
                     <th className="px-6 py-4 text-left font-semibold text-slate-700">Company</th>
@@ -328,6 +651,14 @@ export default function Dashboard() {
                 <tbody className="divide-y divide-slate-100">
                   {filteredLeads.map((l) => (
                     <tr key={l.id} className="hover:bg-blue-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedLeads.has(l.id)}
+                          onChange={() => toggleSelectLead(l.id)}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
                       <td className="px-6 py-4">
                         <a
                           href={`/leads/${l.id}`}

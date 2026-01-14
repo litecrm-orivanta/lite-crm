@@ -1,4 +1,4 @@
-import { apiFetch } from "./apiFetch";
+import { apiFetch } from './apiFetch';
 
 export type Task = {
   id: string;
@@ -6,89 +6,60 @@ export type Task = {
   note?: string;
   dueAt: string;
   completed: boolean;
+  createdAt: string;
+  lead?: {
+    id: string;
+    name: string;
+  };
+  owner?: {
+    id: string;
+    name?: string;
+    email: string;
+  };
 };
 
-/**
- * GET /leads/:id/tasks
- */
 export async function listTasks(leadId: string): Promise<Task[]> {
-  const res = await apiFetch(`/leads/${leadId}/tasks`);
-
-  return res.map((t: any) => ({
-    id: t.id,
-    title: t.title || "Untitled task",
-    note: t.note || undefined,
-    dueAt: t.dueAt,
-    completed: t.completed,
-  }));
+  return apiFetch(`/leads/${leadId}/tasks`);
 }
 
-/**
- * POST /leads/:id/tasks
- */
-export async function createTask(
-  leadId: string,
-  data: {
-    title: string;
-    note?: string;
-    dueAt: string;
-  }
-): Promise<Task> {
+export async function createTask(leadId: string, data: {
+  title: string;
+  note?: string;
+  dueAt: string;
+}): Promise<Task> {
   return apiFetch(`/leads/${leadId}/tasks`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-/**
- * PATCH /leads/:id/tasks/:taskId
- * Edit task
- */
-export async function updateTask(
-  leadId: string,
-  taskId: string,
-  data: {
-    title?: string;
-    note?: string;
-    dueAt?: string;
-  }
-): Promise<Task> {
+export async function updateTask(leadId: string, taskId: string, data: {
+  title?: string;
+  note?: string;
+  dueAt?: string;
+}): Promise<Task> {
   return apiFetch(`/leads/${leadId}/tasks/${taskId}`, {
-    method: "PATCH",
+    method: 'PATCH',
     body: JSON.stringify(data),
   });
 }
 
-/**
- * PATCH /leads/:id/tasks/:taskId/complete
- */
-export async function completeTask(
-  leadId: string,
-  taskId: string
-): Promise<void> {
-  await apiFetch(`/leads/${leadId}/tasks/${taskId}/complete`, {
-    method: "PATCH",
+export async function deleteTask(leadId: string, taskId: string): Promise<void> {
+  return apiFetch(`/leads/${leadId}/tasks/${taskId}`, {
+    method: 'DELETE',
   });
 }
 
-/**
- * BACKWARD COMPATIBILITY
- * Used by existing LeadDetail.tsx
- */
-export async function toggleTask(taskId: string): Promise<void> {
-  await apiFetch(`/leads/tasks/${taskId}/complete`, {
-    method: "PATCH",
+export async function completeTask(leadId: string, taskId: string): Promise<Task> {
+  return apiFetch(`/leads/${leadId}/tasks/${taskId}/complete`, {
+    method: 'PATCH',
   });
 }
 
-/**
- * DELETE /leads/:id/tasks/:taskId
- */
-export async function deleteTask(
-  leadId: string,
-  taskId: string
-): Promise<void> {
-  await apiFetch(`/leads/${leadId}/tasks/${taskId}`, {
-    method: "DELETE",
-  });
+export async function getCalendarView(startDate?: string, endDate?: string) {
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiFetch(`/tasks/calendar${query}`);
 }

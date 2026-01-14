@@ -11,6 +11,13 @@ import { UsersModule } from './users/users.module';
 import { NotificationModule } from './notifications/notification.module';
 import { WorkflowsModule } from './workflows/workflows.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { AdminModule } from './admin/admin.module';
+import { SavedFiltersModule } from './saved-filters/saved-filters.module';
+import { EmailTemplatesModule } from './email-templates/email-templates.module';
+import { AttachmentsModule } from './attachments/attachments.module';
+import { CustomFieldsModule } from './custom-fields/custom-fields.module';
+import { EmailsModule } from './emails/emails.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -26,6 +33,13 @@ import { IntegrationsModule } from './integrations/integrations.module';
     NotificationModule,
     WorkflowsModule,
     IntegrationsModule,
+    AdminModule,
+    SavedFiltersModule,
+    EmailTemplatesModule,
+    AttachmentsModule,
+    CustomFieldsModule,
+    EmailsModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}

@@ -33,12 +33,13 @@ export class AuthService {
     private jwt: JwtService,
   ) {}
 
-  // 🔑 FIXED: JWT now carries role + workspaceId
+  // 🔑 FIXED: JWT now carries role + workspaceId + isSuperAdmin
   private sign(user: {
     id: string;
     email: string;
     role: UserRole;
     workspaceId: string;
+    isSuperAdmin: boolean;
   }) {
     return {
       accessToken: this.jwt.sign({
@@ -46,6 +47,7 @@ export class AuthService {
         email: user.email,
         role: user.role,
         workspaceId: user.workspaceId,
+        isSuperAdmin: user.isSuperAdmin,
       }),
     };
   }
@@ -115,6 +117,7 @@ export class AuthService {
           email: user.email,
           role: user.role,
           workspaceId: user.workspaceId,
+          isSuperAdmin: user.isSuperAdmin || false,
         });
       }
 
@@ -163,6 +166,7 @@ export class AuthService {
         email: user.email,
         role: user.role,
         workspaceId: user.workspaceId,
+        isSuperAdmin: user.isSuperAdmin || false,
       });
     } catch (error) {
       if (
@@ -194,6 +198,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       workspaceId: user.workspaceId,
+      isSuperAdmin: user.isSuperAdmin || false,
     });
   }
 
@@ -229,6 +234,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       workspaceId: user.workspaceId,
+      isSuperAdmin: user.isSuperAdmin || false,
     });
   }
 

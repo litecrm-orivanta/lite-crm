@@ -6,12 +6,14 @@ import { LeadNotesController } from './lead-notes.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { WorkflowsModule } from '../workflows/workflows.module';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
   imports: [
     PrismaModule,
     NotificationsModule,
     WorkflowsModule,
+    AdminModule,
   ],
   providers: [
     LeadsService,

@@ -195,4 +195,32 @@ export class TasksService {
 
     return { success: true };
   }
+
+  // Phase 2: Calendar view
+  async getCalendarView(workspaceId: string, startDate?: Date, endDate?: Date) {
+    const start = startDate || new Date();
+    const end = endDate || new Date();
+    end.setDate(end.getDate() + 30); // Default to next 30 days
+
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        lead: { workspaceId },
+        dueAt: {
+          gte: start,
+          lte: end,
+        },
+      },
+      include: {
+        lead: {
+          select: { id: true, name: true },
+        },
+        owner: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { dueAt: 'asc' },
+    });
+
+    return tasks;
+  }
 }

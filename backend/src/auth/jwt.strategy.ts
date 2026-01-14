@@ -19,10 +19,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { sub: string }) {
+  async validate(payload: { sub: string; email?: string; role?: string; workspaceId?: string; isSuperAdmin?: boolean }) {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, workspaceId: true },
+      select: { id: true, workspaceId: true, role: true, email: true, isSuperAdmin: true },
     });
 
     if (!user) {
@@ -32,6 +32,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: user.id,
       workspaceId: user.workspaceId,
+      email: user.email,
+      role: user.role,
+      isSuperAdmin: user.isSuperAdmin || false,
     };
   }
 }

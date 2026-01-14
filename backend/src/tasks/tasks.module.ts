@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TasksService } from './tasks.service';
-import { TasksController } from './tasks.controller';
+import { TasksController, TasksCalendarController } from './tasks.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationModule } from '../notifications/notification.module';
 import { TaskReminderService } from './task-reminder.service';
@@ -18,6 +18,7 @@ import { WorkflowsModule } from '../workflows/workflows.module';
   ],
   controllers: [
     TasksController,
+    TasksCalendarController,
   ],
 })
 export class TasksModule {}

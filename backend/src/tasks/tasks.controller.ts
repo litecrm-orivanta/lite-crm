@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -102,6 +103,26 @@ export class TasksController {
       taskId,
       leadId,
       user.workspaceId,
+    );
+  }
+}
+
+// Phase 2: Calendar view endpoint
+@UseGuards(JwtAuthGuard)
+@Controller('tasks')
+export class TasksCalendarController {
+  constructor(private readonly tasks: TasksService) {}
+
+  @Get('calendar')
+  getCalendarView(
+    @CurrentUser() user: { workspaceId: string },
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.tasks.getCalendarView(
+      user.workspaceId,
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
     );
   }
 }

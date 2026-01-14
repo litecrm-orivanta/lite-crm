@@ -105,6 +105,10 @@ model Workspace {
   invites Invite[]
   workflows Workflow[]
   integrations WorkspaceIntegration[]
+  subscription Subscription?
+  savedFilters SavedFilter[]
+  emailTemplates EmailTemplate[]
+  customFields CustomField[]
 }
 
 model User {
@@ -115,6 +119,7 @@ model User {
   role         UserRole     @default(ADMIN)
   authProvider AuthProvider @default(LOCAL)
   providerId   String?
+  isSuperAdmin Boolean      @default(false) // Only one super-admin exists for platform management
   createdAt    DateTime     @default(now())
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
@@ -123,6 +128,10 @@ model User {
   leads      Lead[]     @relation("LeadOwner")
   tasks      Task[]
   activities Activity[]
+  savedFilters SavedFilter[]
+  emailTemplates EmailTemplate[]
+  attachments LeadAttachment[]
+  emails     Email[]
 }
 
 model Invite {
@@ -157,6 +166,9 @@ model Lead {
 
   tasks      Task[]
   activities Activity[]
+  attachments LeadAttachment[]
+  customFieldValues LeadCustomFieldValue[]
+  emails     Email[]
 }
 
 model Task {
@@ -279,6 +291,38 @@ enum IntegrationType {
   OPENAI
 }
 
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  TRIAL
+  SUSPENDED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum PlanType {
+  FREE
+  STARTER
+  PROFESSIONAL
+  BUSINESS
+  ENTERPRISE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
 model WorkspaceIntegration {
   id        String          @id @default(cuid())
   type      IntegrationType
@@ -293,4 +337,196 @@ model WorkspaceIntegration {
 
   @@unique([workspaceId, type])
   @@index([workspaceId])
+}
+
+model Subscription {
+  id              String             @id @default(cuid())
+  workspaceId     String             @unique
+  planType        PlanType           @default(FREE)
+  status          SubscriptionStatus @default(TRIAL)
+  amount          Float              @default(0)
+  currency        String             @default("USD")
+  billingCycle    String             @default("monthly") // monthly, annual
+  startDate       DateTime           @default(now())
+  endDate         DateTime?
+  cancelledAt     DateTime?
+  cancelledReason String?
+  adminNotes      String?            // Admin notes for manual changes
+  isManual        Boolean            @default(false)     // Admin-assigned (no payment required)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  payments        Payment[]
+  invoices        Invoice[]
+
+  @@index([status])
+  @@index([planType])
+  @@index([workspaceId])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  subscriptionId  String
+  amount          Float
+  currency        String        @default("USD")
+  status          PaymentStatus @default(PENDING)
+  paymentMethod   String?       // stripe, paypal, manual
+  paymentGateway  String?       // stripe, paypal
+  transactionId   String?       // External payment ID
+  invoiceId       String?       @unique
+  paidAt          DateTime?
+  failureReason   String?
+  refundAmount    Float?        @default(0)
+  refundedAt      DateTime?
+  metadata        Json?         // Additional payment data
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  subscription    Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  invoice         Invoice?      @relation(fields: [invoiceId], references: [id])
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([transactionId])
+  @@index([paymentGateway])
+  @@index([createdAt])
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  subscriptionId  String
+  invoiceNumber   String        @unique
+  amount          Float
+  currency        String        @default("USD")
+  status          InvoiceStatus @default(DRAFT)
+  dueDate         DateTime?
+  paidAt          DateTime?
+  pdfUrl          String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  subscription    Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  payment         Payment?
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([invoiceNumber])
+  @@index([createdAt])
+}
+
+// Phase 1 & 2: User Features
+model SavedFilter {
+  id        String   @id @default(cuid())
+  name      String
+  filters   Json     // Filter configuration (stage, source, region, query, etc.)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+model LeadAttachment {
+  id        String   @id @default(cuid())
+  filename  String
+  fileUrl   String   // URL to stored file
+  fileSize  Int      // Size in bytes
+  mimeType  String   // MIME type
+  createdAt DateTime @default(now())
+
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  leadId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@index([leadId])
+  @@index([userId])
+}
+
+model CustomField {
+  id        String   @id @default(cuid())
+  name      String
+  type      String   // text, number, date, select, boolean
+  options   Json?    // For select type
+  required  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String
+
+  values LeadCustomFieldValue[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+}
+
+model LeadCustomFieldValue {
+  id        String   @id @default(cuid())
+  value     Json     // Flexible value storage
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  leadId String
+
+  customField   CustomField @relation(fields: [customFieldId], references: [id], onDelete: Cascade)
+  customFieldId String
+
+  @@unique([leadId, customFieldId])
+  @@index([leadId])
+  @@index([customFieldId])
+}
+
+model Email {
+  id        String   @id @default(cuid())
+  to        String   // Email address
+  subject   String
+  body      String   // HTML body
+  status    String   @default("SENT") // SENT, FAILED, PENDING
+  error     String?
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+
+  lead   Lead?  @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  leadId String?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  template   EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  templateId String?
+
+  @@index([leadId])
+  @@index([userId])
+  @@index([status])
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  subject   String
+  body      String   // HTML email body
+  variables Json?    // Available variables (e.g., {{lead.name}}, {{lead.email}})
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  emails Email[]
+
+  @@index([workspaceId])
+  @@index([userId])
 }

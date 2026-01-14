@@ -29,38 +29,5 @@ services:
     depends_on:
       - backend
 
-  n8n:
-    image: n8nio/n8n:latest
-    # Note: n8n port is exposed but UI access is restricted to administrators only
-    # Users configure workflows via Lite CRM UI, not directly through n8n UI
-    ports:
-      - "5678:5678"
-    environment:
-      # Basic Auth (can be disabled for embedded mode)
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=n8n_admin_pass
-      # Allow embedding in iframes
-      - N8N_EDITOR_BASE_URL=http://localhost:5678
-      - N8N_HOST=0.0.0.0
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://localhost:5678/
-      - GENERIC_TIMEZONE=Asia/Kolkata
-      # Security settings for embedding - allow iframe embedding
-      - N8N_SECURE_COOKIE=false
-      # Disable X-Frame-Options to allow embedding
-      - N8N_METRICS=false
-      # Disable telemetry
-      - N8N_DIAGNOSTICS_ENABLED=false
-      # Custom headers to allow iframe embedding
-      - N8N_CUSTOM_EXTENSIONS=
-    volumes:
-      - n8n_data:/home/node/.n8n
-    depends_on:
-      - backend
-    restart: always
-
 volumes:
   pgdata:
-  n8n_data:

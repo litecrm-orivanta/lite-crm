@@ -94,19 +94,34 @@ export class OtpService {
    * Verify OTP
    */
   async verifyOTP(email: string, otp: string, purpose: 'signup' | 'password_reset'): Promise<boolean> {
-    // Find OTP record
+    // Find OTP record - check both unused and recently used (within 10 minutes)
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
     const otpRecord = await this.prisma.emailOTP.findFirst({
       where: {
         email,
         purpose,
-        used: false,
+        otp,
         expiresAt: { gt: new Date() },
+        OR: [
+          { used: false },
+          { 
+            used: true, 
+            // Allow re-verification if OTP was verified within last 10 minutes (for signup flow)
+            updatedAt: { gte: tenMinutesAgo }
+          }
+        ],
       },
       orderBy: { createdAt: 'desc' },
     });
 
     if (!otpRecord) {
       throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    // If already used but within time window, allow it (for signup after verify-signup-otp)
+    if (otpRecord.used && otpRecord.updatedAt >= tenMinutesAgo) {
+      this.logger.log(`OTP re-verified for ${email} (${purpose}) - within time window`);
+      return true;
     }
 
     // Check if max attempts exceeded

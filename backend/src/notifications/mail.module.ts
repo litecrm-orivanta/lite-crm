@@ -14,7 +14,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
         },
       },
       defaults: {
-        from: process.env.EMAIL_FROM,
+        from: process.env.EMAIL_FROM || 'no-reply@orivanta.ai',
       },
     }),
   ],

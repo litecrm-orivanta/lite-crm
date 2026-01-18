@@ -109,6 +109,9 @@ model Workspace {
   savedFilters SavedFilter[]
   emailTemplates EmailTemplate[]
   customFields CustomField[]
+  emailIntegration EmailIntegration?
+  workflowTemplates WorkflowTemplate[]
+  auditLogs AuditLog[]
 }
 
 model User {
@@ -132,6 +135,10 @@ model User {
   emailTemplates EmailTemplate[]
   attachments LeadAttachment[]
   emails     Email[]
+  passwordResets PasswordReset[]
+  notificationRecipients NotificationRecipient[]
+  notificationsCreated Notification[] @relation("NotificationCreatedBy")
+  auditLogs AuditLog[]
 }
 
 model Invite {
@@ -213,6 +220,7 @@ model Workflow {
   nodes       WorkflowNode[]
   edges       WorkflowEdge[]
   executions  WorkflowExecution[]
+
 
   @@index([workspaceId])
   @@index([workspaceId, active])
@@ -529,4 +537,178 @@ model EmailTemplate {
 
   @@index([workspaceId])
   @@index([userId])
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([token])
+  @@index([userId])
+}
+
+model EmailOTP {
+  id        String   @id @default(cuid())
+  email     String
+  otp       String   // 6-digit OTP
+  purpose   String   // 'signup' or 'password_reset'
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  attempts  Int      @default(0) // Track verification attempts
+  createdAt DateTime @default(now())
+  
+  @@index([email, purpose])
+  @@index([otp])
+  @@index([expiresAt])
+}
+
+model EmailIntegration {
+  id          String   @id @default(cuid())
+  workspaceId String   @unique
+  provider    String   @default("LITE_CRM") // "LITE_CRM" or "CUSTOM_SMTP"
+  smtpHost    String?
+  smtpPort    Int?
+  smtpUser    String?
+  smtpPass    String?  // Encrypted
+  smtpSecure  Boolean  @default(false)
+  fromEmail   String?
+  fromName    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  @@index([workspaceId])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  target      Json?
+  createdAt   DateTime @default(now())
+
+  createdBy   User?    @relation("NotificationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+
+  recipients  NotificationRecipient[]
+
+  @@index([createdAt])
+}
+
+model NotificationRecipient {
+  id             String       @id @default(cuid())
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  notificationId String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@unique([notificationId, userId])
+  @@index([userId])
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String
+  resource    String
+  resourceId  String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  actor     User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorId   String?
+
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  workspaceId String?
+
+  @@index([action])
+  @@index([resource])
+  @@index([actorId])
+  @@index([workspaceId])
+}
+
+enum WorkflowTemplateStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum WorkflowTemplateComplexity {
+  SIMPLE
+  INTERMEDIATE
+  ADVANCED
+}
+
+model WorkflowTemplate {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  category      String
+  tags          String[]
+  useCase       String?
+  complexity    WorkflowTemplateComplexity @default(SIMPLE)
+  status        WorkflowTemplateStatus @default(DRAFT)
+  isFeatured    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace     Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  workspaceId   String?
+
+  versions      WorkflowTemplateVersion[]
+
+  @@index([category])
+  @@index([status])
+}
+
+model WorkflowTemplateVersion {
+  id            String   @id @default(cuid())
+  template      WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  templateId    String
+  version       Int
+  nodes         Json
+  edges         Json
+  createdAt     DateTime @default(now())
+
+  @@unique([templateId, version])
+  @@index([templateId])
+}
+
+model PaymentGatewayConfig {
+  id              String   @id @default(cuid())
+  environment     String   @default("UAT") // "UAT" or "PRODUCTION"
+  razorpayKeyId   String
+  razorpayKeySecret String // Encrypted
+  webhookUrl      String?  // Webhook URL to configure in Razorpay dashboard
+  webhookSecret   String?  // Webhook secret (encrypted) for signature verification
+  isActive        Boolean  @default(false)
+  useForPayments  Boolean  @default(false) // If true, this environment will be used for all payments
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([environment])
+}
+
+model PlanPricing {
+  planType          PlanType @id
+  individualPrice   Float    @default(0)
+  organizationPrice Float    @default(0)
+  currency          String   @default("INR")
+  billingCycle      String   @default("monthly")
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([isActive])
 }

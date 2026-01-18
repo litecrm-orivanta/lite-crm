@@ -8,8 +8,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '@prisma/client';
 import { NotificationService } from '../notifications/notification.service';
 import { WorkflowsService } from '../workflows/workflows.service';
+import { EmailTemplates } from '../notifications/email-templates';
 
-const FRONTEND_URL = 'http://localhost:8080';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
 
 @Injectable()
 export class InvitesService {
@@ -43,7 +44,7 @@ export class InvitesService {
     // Check user limit based on plan
     const workspace = await this.prisma.workspace.findUnique({
       where: { id: workspaceId },
-      select: { plan: true },
+      select: { plan: true, name: true },
     });
 
     if (!workspace) {
@@ -89,19 +90,15 @@ export class InvitesService {
     // const acceptLink = `${FRONTEND_URL}/accept-invite?inviteId=${invite.id}`;
     const acceptLink = `${FRONTEND_URL}/accept-invite/${invite.id}`;
 
+    // Get inviter info for email
+    const inviter = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+    const inviterName = inviter?.name || 'Team Admin';
+    const workspaceName = workspace.name || 'Workspace';
+
     await this.notifications.sendEmail(
       email,
-      'You are invited to join Lite CRM',
-      `
-        <p>Hello,</p>
-        <p>You have been invited to join a workspace on <strong>Lite CRM</strong>.</p>
-        <p>
-          <a href="${acceptLink}" target="_blank">
-            Accept Invite
-          </a>
-        </p>
-        <p>This invite will expire in 7 days.</p>
-      `,
+      `You're Invited to Join ${workspaceName} - Lite CRM`,
+      EmailTemplates.getInvite(acceptLink, inviterName, workspaceName, role, '7 days'),
     );
 
     // Trigger workflow for user invite

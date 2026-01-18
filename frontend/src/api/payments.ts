@@ -2,7 +2,6 @@ import { apiFetch } from "./apiFetch";
 
 export interface Payment {
   id: string;
-  subscriptionId: string;
   amount: number;
   currency: string;
   status: string;
@@ -12,31 +11,40 @@ export interface Payment {
   createdAt: string;
 }
 
-export interface PaymentIntent {
-  clientSecret: string;
-  paymentIntentId: string;
+export async function getMyPayments(): Promise<Payment[]> {
+  return apiFetch("/workspace-admin/payments");
+}
+
+export interface RazorpayOrder {
+  id: string;
   amount: number;
   currency: string;
+  receipt: string;
+  status: string;
+  key_id?: string; // Razorpay Key ID for frontend checkout
 }
 
-export async function createPaymentIntent(amount: number, currency: string = "usd"): Promise<PaymentIntent> {
-  return apiFetch("/payments/intent", {
+export async function createRazorpayOrder(data: {
+  amount: number;
+  currency?: string;
+  planType?: string;
+  billingPeriod?: string;
+  environment?: 'UAT' | 'PRODUCTION';
+}): Promise<RazorpayOrder> {
+  return apiFetch("/payments/razorpay/create-order", {
     method: "POST",
-    body: JSON.stringify({ amount, currency }),
+    body: JSON.stringify(data),
   });
 }
 
-export async function processStripePayment(
-  paymentId: string,
-  paymentIntentId: string,
-  amount: number
-): Promise<Payment> {
-  return apiFetch("/payments/stripe/process", {
+export async function verifyRazorpayPayment(data: {
+  paymentId: string;
+  orderId: string;
+  signature: string;
+  environment?: 'UAT' | 'PRODUCTION';
+}) {
+  return apiFetch("/payments/razorpay/verify", {
     method: "POST",
-    body: JSON.stringify({ paymentId, paymentIntentId, amount }),
+    body: JSON.stringify(data),
   });
-}
-
-export async function getMyPayments(): Promise<Payment[]> {
-  return apiFetch("/payments/me");
 }

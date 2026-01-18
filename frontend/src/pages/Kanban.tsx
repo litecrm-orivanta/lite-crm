@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import AppLayout from "@/layouts/AppLayout";
 import { getKanbanView } from "@/api/leads";
 import { updateLeadStage } from "@/api/leads";
+import { useToastContext } from "@/contexts/ToastContext";
 
 const STAGES = ["NEW", "CONTACTED", "FOLLOW_UP", "WON", "LOST"];
 
@@ -10,6 +11,7 @@ export default function Kanban() {
   const [kanbanData, setKanbanData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [draggedLead, setDraggedLead] = useState<string | null>(null);
+  const toast = useToastContext();
 
   useEffect(() => {
     loadKanban();
@@ -22,7 +24,7 @@ export default function Kanban() {
       setKanbanData(data || []);
     } catch (err: any) {
       console.error("Failed to load kanban:", err);
-      alert(`Failed to load kanban board: ${err.message || "Unknown error"}`);
+      toast.error(`Failed to load kanban board: ${err.message || "Unknown error"}`);
     } finally {
       setLoading(false);
     }
@@ -33,7 +35,7 @@ export default function Kanban() {
       await updateLeadStage(leadId, newStage);
       await loadKanban(); // Reload to reflect changes
     } catch (err: any) {
-      alert(`Failed to update lead stage: ${err.message || "Unknown error"}`);
+      toast.error(`Failed to update lead stage: ${err.message || "Unknown error"}`);
     }
   }
 

@@ -1,17 +1,60 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import LiteCRMLogo from "@/components/LiteCRMLogo";
 import ConsolidatedBanner from "@/components/ConsolidatedBanner";
+import { getUnreadCount } from "@/api/notifications";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
-  const { email, role, isSuperAdmin, logout } = useAuth();
+  const { email, role, isSuperAdmin, logout, token } = useAuth();
   const location = useLocation();
+  const [unreadCount, setUnreadCount] = useState(0);
+  const lastInteractionRef = useRef(Date.now());
 
   const isActive = (path: string) =>
     location.pathname.startsWith(path)
       ? "text-slate-900 font-medium"
       : "text-slate-600 hover:text-slate-900";
+
+  useEffect(() => {
+    if (!token) return;
+    getUnreadCount()
+      .then((data) => setUnreadCount(data.count || 0))
+      .catch(() => setUnreadCount(0));
+  }, [location.pathname, token]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    const updateInteraction = () => {
+      lastInteractionRef.current = Date.now();
+    };
+    window.addEventListener("click", updateInteraction);
+    window.addEventListener("keydown", updateInteraction);
+    window.addEventListener("mousemove", updateInteraction);
+
+    const interval = setInterval(() => {
+      const sessionId = localStorage.getItem("sessionId");
+      if (!sessionId) return;
+      const idleMs = Date.now() - lastInteractionRef.current;
+      if (idleMs > 60000) return;
+      fetch("/api/auth/session/heartbeat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ sessionId }),
+      }).catch(() => {});
+    }, 60000);
+
+    return () => {
+      window.removeEventListener("click", updateInteraction);
+      window.removeEventListener("keydown", updateInteraction);
+      window.removeEventListener("mousemove", updateInteraction);
+      clearInterval(interval);
+    };
+  }, [token]);
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -36,6 +79,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   </Link>
                   <Link to="/settings" className={isActive("/settings")}>
                     Settings
+                  </Link>
+                  <Link to="/notifications" className={isActive("/notifications")}>
+                    Notifications
+                    {unreadCount > 0 && (
+                      <span className="ml-1 rounded-full bg-blue-600 text-white text-xs px-2 py-0.5">
+                        {unreadCount}
+                      </span>
+                    )}
                   </Link>
                   <Link to="/docs" className={isActive("/docs")}>
                     Docs
@@ -82,6 +133,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
                   <Link to="/settings" className={isActive("/settings")}>
                     Settings
+                  </Link>
+                  <Link to="/notifications" className={isActive("/notifications")}>
+                    Notifications
+                    {unreadCount > 0 && (
+                      <span className="ml-1 rounded-full bg-blue-600 text-white text-xs px-2 py-0.5">
+                        {unreadCount}
+                      </span>
+                    )}
                   </Link>
 
                   <Link to="/docs" className={isActive("/docs")}>

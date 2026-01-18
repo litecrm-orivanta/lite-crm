@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import AppLayout from "@/layouts/AppLayout";
 import { listUsers, User } from "@/api/users";
 import { listInvites, createInvite, revokeInvite, Invite } from "@/api/invites";
+import { getMySubscription } from "@/api/subscriptions";
+import { useToastContext } from "@/contexts/ToastContext";
+import { useDialogContext } from "@/contexts/DialogContext";
+import UpgradeModal from "@/components/UpgradeModal";
 
 export default function Team() {
   const [users, setUsers] = useState<User[]>([]);
@@ -9,15 +13,26 @@ export default function Team() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"ADMIN" | "MEMBER">("MEMBER");
   const [loading, setLoading] = useState(true);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const toast = useToastContext();
+  const dialog = useDialogContext();
 
   async function loadAll() {
-    const [u, i] = await Promise.all([
-      listUsers(),
-      listInvites(),
-    ]);
-    setUsers(u);
-    setInvites(i);
-    setLoading(false);
+    try {
+      const [u, i, sub] = await Promise.all([
+        listUsers(),
+        listInvites(),
+        getMySubscription().catch(() => null),
+      ]);
+      setUsers(u);
+      setInvites(i);
+      setSubscription(sub);
+    } catch (err) {
+      console.error("Failed to load data:", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -28,20 +43,59 @@ export default function Team() {
     e.preventDefault();
     if (!email) return;
 
-    await createInvite(email, role);
-    setEmail("");
-    setRole("MEMBER");
-    loadAll();
+    try {
+      // Check user limit before inviting
+      const planType = subscription?.planType || "FREE";
+      const maxUsers = planType === "STARTER" ? 1 : planType === "PROFESSIONAL" ? 5 : planType === "BUSINESS" || planType === "ENTERPRISE" ? Infinity : 1;
+      
+      if (maxUsers !== Infinity && users.length >= maxUsers) {
+        setShowUpgradeModal(true);
+        return;
+      }
+
+      await createInvite(email, role);
+      toast.success("Invite sent successfully!");
+      setEmail("");
+      setRole("MEMBER");
+      loadAll();
+    } catch (err: any) {
+      if (err?.message?.includes("upgrade")) {
+        setShowUpgradeModal(true);
+      } else {
+        toast.error(err?.message || "Failed to send invite");
+      }
+    }
   }
 
   async function revoke(id: string) {
-    if (!confirm("Revoke this invite?")) return;
-    await revokeInvite(id);
-    loadAll();
+    const confirmed = await dialog.confirm({
+      title: "Revoke Invite",
+      message: "Revoke this invite?",
+      confirmText: "Revoke",
+      destructive: true,
+    });
+    if (!confirmed) return;
+    try {
+      await revokeInvite(id);
+      toast.success("Invite revoked successfully");
+      loadAll();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to revoke invite");
+    }
   }
+
+  const planType = subscription?.planType || "FREE";
+  const maxUsers = planType === "STARTER" ? 1 : planType === "PROFESSIONAL" ? 5 : planType === "BUSINESS" || planType === "ENTERPRISE" ? Infinity : 1;
 
   return (
     <AppLayout>
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        title="Upgrade Required"
+        message={`Your current plan (${planType}) allows up to ${maxUsers === Infinity ? "unlimited" : maxUsers} user${maxUsers === 1 ? "" : "s"}. To invite more team members, please upgrade your plan.`}
+        feature="Team Collaboration"
+      />
       <div className="space-y-8">
 
         <div>

@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { WorkspaceType } from '@prisma/client';
 
 @Injectable()
 export class WorkspaceAdminService {
@@ -146,6 +147,75 @@ export class WorkspaceAdminService {
         },
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Get workspace details for update (for audit logging)
+   */
+  async getWorkspaceForUpdate(workspaceId: string) {
+    return this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        teamSize: true,
+      },
+    });
+  }
+
+  /**
+   * Update workspace type and details
+   */
+  async updateWorkspaceType(
+    workspaceId: string,
+    type: WorkspaceType,
+    name?: string,
+    teamSize?: string,
+  ) {
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (type !== WorkspaceType.SOLO && type !== WorkspaceType.ORG) {
+      throw new BadRequestException('Invalid workspace type. Must be SOLO or ORG');
+    }
+
+    // When switching to SOLO, clear teamSize if provided
+    // When switching to ORG, require name if not already set
+    const updateData: any = { type };
+    if (type === WorkspaceType.SOLO) {
+      updateData.teamSize = null; // Clear teamSize for SOLO
+    } else if (type === WorkspaceType.ORG) {
+      if (name) {
+        updateData.name = name;
+      }
+      if (teamSize) {
+        updateData.teamSize = teamSize;
+      }
+      // If workspace name is default "My Workspace", update it with provided name
+      if (!workspace.name || workspace.name === 'My Workspace') {
+        if (name) {
+          updateData.name = name;
+        }
+      }
+    }
+
+    return this.prisma.workspace.update({
+      where: { id: workspaceId },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        teamSize: true,
+        plan: true,
+      },
     });
   }
 }

@@ -1,12 +1,17 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlanType, SubscriptionStatus } from '@prisma/client';
+import { PlanPricingService } from './plan-pricing.service';
 
 @Injectable()
 export class SubscriptionService {
   private readonly logger = new Logger(SubscriptionService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => PlanPricingService))
+    private planPricingService: PlanPricingService,
+  ) {}
 
   /**
    * Get subscription for a workspace
@@ -195,11 +200,18 @@ export class SubscriptionService {
   /**
    * Get plan details and features
    */
-  getPlanDetails(planType: PlanType) {
+  async getPlanDetails(planType: PlanType, workspaceType: 'SOLO' | 'ORG' = 'SOLO') {
+    // Get dynamic pricing from database
+    const pricing = await this.planPricingService.getPricing(planType);
+    if (!pricing) {
+      throw new NotFoundException(`Pricing for plan ${planType} not found`);
+    }
+    const amount = workspaceType === 'ORG' ? pricing.organizationPrice : pricing.individualPrice;
+
     const plans = {
       [PlanType.FREE]: {
         name: 'Free',
-        amount: 0,
+        amount,
         features: {
           maxLeads: 5,
           maxUsers: 1,
@@ -210,7 +222,7 @@ export class SubscriptionService {
       },
       [PlanType.STARTER]: {
         name: 'Starter',
-        amount: 899, // ₹899/month (Individual) or ₹1,999/month (Organization)
+        amount,
         features: {
           maxLeads: -1, // Unlimited
           maxUsers: 1,
@@ -221,7 +233,7 @@ export class SubscriptionService {
       },
       [PlanType.PROFESSIONAL]: {
         name: 'Professional',
-        amount: 1599, // ₹1,599/month (Individual) or ₹3,999/month (Organization)
+        amount,
         features: {
           maxLeads: -1,
           maxUsers: 5,
@@ -233,7 +245,7 @@ export class SubscriptionService {
       },
       [PlanType.BUSINESS]: {
         name: 'Business',
-        amount: 7999, // ₹7,999/month
+        amount,
         features: {
           maxLeads: -1,
           maxUsers: -1, // Unlimited
@@ -247,7 +259,7 @@ export class SubscriptionService {
       },
       [PlanType.ENTERPRISE]: {
         name: 'Enterprise',
-        amount: 0, // Custom pricing
+        amount,
         features: {
           maxLeads: -1,
           maxUsers: -1,
@@ -262,6 +274,100 @@ export class SubscriptionService {
       },
     };
 
-    return plans[planType] || plans[PlanType.FREE];
+    const planDetails = plans[planType] || plans[PlanType.FREE];
+    planDetails.amount = amount;
+    return planDetails;
+  }
+
+  /**
+   * Update subscription status
+   */
+  async updateSubscriptionStatus(workspaceId: string, status: SubscriptionStatus) {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { workspaceId },
+    });
+
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    return this.prisma.subscription.update({
+      where: { workspaceId },
+      data: {
+        status,
+        updatedAt: new Date(),
+      },
+      include: {
+        workspace: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Suspend workspace
+   */
+  async suspendWorkspace(workspaceId: string) {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { workspaceId },
+    });
+
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    return this.prisma.subscription.update({
+      where: { workspaceId },
+      data: {
+        status: SubscriptionStatus.SUSPENDED,
+        updatedAt: new Date(),
+      },
+      include: {
+        workspace: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Unsuspend workspace
+   */
+  async unsuspendWorkspace(workspaceId: string) {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { workspaceId },
+    });
+
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    // Restore to previous status or ACTIVE if was SUSPENDED
+    const newStatus = subscription.status === SubscriptionStatus.SUSPENDED
+      ? SubscriptionStatus.ACTIVE
+      : subscription.status;
+
+    return this.prisma.subscription.update({
+      where: { workspaceId },
+      data: {
+        status: newStatus,
+        updatedAt: new Date(),
+      },
+      include: {
+        workspace: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
   }
 }

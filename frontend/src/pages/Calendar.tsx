@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import AppLayout from "@/layouts/AppLayout";
 import { getCalendarView } from "@/api/tasks";
+import { useToastContext } from "@/contexts/ToastContext";
 
 export default function Calendar() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const toast = useToastContext();
 
   useEffect(() => {
     loadTasks();
@@ -27,7 +29,7 @@ export default function Calendar() {
       setTasks(data || []);
     } catch (err: any) {
       console.error("Failed to load calendar:", err);
-      alert(`Failed to load calendar: ${err.message || "Unknown error"}`);
+      toast.error(`Failed to load calendar: ${err.message || "Unknown error"}`);
     } finally {
       setLoading(false);
     }

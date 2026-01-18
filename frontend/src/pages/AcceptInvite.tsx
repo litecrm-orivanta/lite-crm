@@ -45,7 +45,7 @@ export default function AcceptInvite() {
         }),
       });
 
-      signup(res.accessToken);
+      signup(res.accessToken, res.sessionId);
       navigate("/", { replace: true });
     } catch (err: any) {
       setError(err?.message || "Invite acceptance failed");

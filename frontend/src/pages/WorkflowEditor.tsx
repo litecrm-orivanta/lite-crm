@@ -19,6 +19,9 @@ import "reactflow/dist/style.css";
 import AppLayout from "@/layouts/AppLayout";
 import { getWorkflow, createWorkflow, updateWorkflow } from "@/api/workflows";
 import { WhatsAppLogo, TelegramLogo, SlackLogo, SMSLogo, ChatGPTLogo } from "@/components/ChannelLogos";
+import { useToastContext } from "@/contexts/ToastContext";
+import { useDialogContext } from "@/contexts/DialogContext";
+import { listWorkflowTemplates, WorkflowTemplate } from "@/api/workflow-templates";
 
 // Node Types
 const TRIGGER_EVENTS = [
@@ -136,6 +139,8 @@ function HttpRequestNode({ data }: any) {
 }
 
 function EmailNode({ data }: any) {
+  const useCustomSMTP = data.config?.useCustomSMTP || false;
+
   return (
     <div className="px-4 py-3 bg-green-100 border-2 border-green-500 rounded-lg shadow-lg min-w-[250px] hover:shadow-xl transition-shadow">
       <EnhancedHandle type="target" position={Position.Top} />
@@ -144,6 +149,19 @@ function EmailNode({ data }: any) {
         <span>📧</span> Send Email
       </div>
       <div className="space-y-2 text-sm">
+        <div>
+          <label className="block text-xs text-green-700 mb-1">Email Provider</label>
+          <select
+            value={useCustomSMTP ? "CUSTOM_SMTP" : "LITE_CRM"}
+            onChange={(e) =>
+              data.onChange?.({ config: { ...data.config, useCustomSMTP: e.target.value === "CUSTOM_SMTP" } })
+            }
+            className="w-full border border-green-300 rounded px-2 py-1 text-xs bg-white focus:ring-2 focus:ring-green-500"
+          >
+            <option value="LITE_CRM">Use Lite CRM Mail</option>
+            <option value="CUSTOM_SMTP">Use Custom SMTP</option>
+          </select>
+        </div>
         <div>
           <label className="block text-xs text-green-700 mb-1">To</label>
           <input
@@ -179,6 +197,11 @@ function EmailNode({ data }: any) {
             className="w-full border border-green-300 rounded px-2 py-1 text-xs bg-white h-20 focus:ring-2 focus:ring-green-500"
           />
         </div>
+        {useCustomSMTP && (
+          <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
+            💡 Configure your SMTP settings in Settings → Email Integration
+          </div>
+        )}
       </div>
     </div>
   );
@@ -999,12 +1022,18 @@ const NODE_CATEGORIES = [
 export default function WorkflowEditor() {
   const { id } = useParams<{ id?: string }>();
   const navigate = useNavigate();
+  const toast = useToastContext();
+  const dialog = useDialogContext();
   const [workflowName, setWorkflowName] = useState("");
   const [workflowDescription, setWorkflowDescription] = useState("");
   const [workflowActive, setWorkflowActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showNodePalette, setShowNodePalette] = useState(true);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templateSearch, setTemplateSearch] = useState("");
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -1061,11 +1090,16 @@ export default function WorkflowEditor() {
                 )
               );
             },
-            onDelete: (id: string) => {
-              if (confirm("Are you sure you want to delete this node?")) {
-                setNodes((nds) => nds.filter((n) => n.id !== id));
-                setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
-              }
+            onDelete: async (id: string) => {
+              const confirmed = await dialog.confirm({
+                title: "Delete Node",
+                message: "Are you sure you want to delete this node?",
+                confirmText: "Delete",
+                destructive: true,
+              });
+              if (!confirmed) return;
+              setNodes((nds) => nds.filter((n) => n.id !== id));
+              setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
             },
           },
         };
@@ -1093,7 +1127,7 @@ export default function WorkflowEditor() {
     } catch (err: any) {
       console.error("Failed to load workflow:", err);
       const errorMessage = err?.message || err?.toString() || "Unknown error";
-      alert(`Failed to load workflow: ${errorMessage}`);
+      toast.error(`Failed to load workflow: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -1103,7 +1137,7 @@ export default function WorkflowEditor() {
     (params: Connection) => {
       // Validate connection
       if (params.source === params.target) {
-        alert("Cannot connect a node to itself");
+        toast.warning("Cannot connect a node to itself");
         return;
       }
       setEdges((eds) => addEdge({ ...params, markerEnd: { type: MarkerType.ArrowClosed } }, eds));
@@ -1128,11 +1162,16 @@ export default function WorkflowEditor() {
             nds.map((n) => (n.id === newNode.id ? { ...n, data: { ...n.data, ...updates } } : n))
           );
         },
-        onDelete: (nodeId: string) => {
-          if (confirm("Are you sure you want to delete this node?")) {
-            setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-            setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
-          }
+        onDelete: async (nodeId: string) => {
+          const confirmed = await dialog.confirm({
+            title: "Delete Node",
+            message: "Are you sure you want to delete this node?",
+            confirmText: "Delete",
+            destructive: true,
+          });
+          if (!confirmed) return;
+          setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+          setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
         },
       },
     };
@@ -1141,14 +1180,14 @@ export default function WorkflowEditor() {
 
   async function saveWorkflow() {
     if (!workflowName.trim()) {
-      alert("Workflow name is required");
+      toast.warning("Workflow name is required");
       return;
     }
 
     // Check if trigger node exists
     const triggerNode = nodes.find((n) => n.type === "trigger");
     if (!triggerNode || !triggerNode.data?.triggerEvent) {
-      alert("Please add a trigger node and select an event");
+      toast.warning("Please add a trigger node and select an event");
       return;
     }
 
@@ -1203,14 +1242,100 @@ export default function WorkflowEditor() {
         console.log("Workflow created:", newWorkflow);
         navigate(`/workflows/editor/${newWorkflow.id}`);
       }
-      alert("Workflow saved successfully!");
+      toast.success("Workflow saved successfully!");
     } catch (err: any) {
       console.error("Failed to save workflow:", err);
       const errorMessage = err?.message || err?.response?.data?.message || err?.toString() || "Unknown error";
-      alert(`Failed to save workflow: ${errorMessage}`);
+      toast.error(`Failed to save workflow: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
+  }
+
+  async function loadTemplates() {
+    try {
+      setTemplatesLoading(true);
+      const data = await listWorkflowTemplates({
+        search: templateSearch || undefined,
+      });
+      setTemplates(data || []);
+    } catch (error: any) {
+      toast.error(`Failed to load templates: ${error?.message || "Unknown error"}`);
+    } finally {
+      setTemplatesLoading(false);
+    }
+  }
+
+  function cloneTemplateGraph(template: WorkflowTemplate, offsetX = 200) {
+    const templateNodes = template.latestVersion?.nodes || [];
+    const templateEdges = template.latestVersion?.edges || [];
+    const idMap = new Map<string, string>();
+
+    const createHandlers = (nodeId: string) => ({
+      onChange: (updates: any) => {
+        setNodes((nds) =>
+          nds.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, ...updates } } : n))
+        );
+      },
+      onDelete: async (id: string) => {
+        const confirmed = await dialog.confirm({
+          title: "Delete Node",
+          message: "Are you sure you want to delete this node?",
+          confirmText: "Delete",
+          destructive: true,
+        });
+        if (!confirmed) return;
+        setNodes((nds) => nds.filter((n) => n.id !== id));
+        setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+      },
+    });
+
+    const nodesCopy = templateNodes.map((node: any, index: number) => {
+      const originalId = node.id || node.nodeId || `node-${index}`;
+      const newId = `${originalId}-${Date.now()}-${index}`;
+      idMap.set(originalId, newId);
+      return {
+        ...node,
+        id: newId,
+        position: {
+          x: (node.position?.x || 0) + offsetX,
+          y: node.position?.y || 0,
+        },
+        data: {
+          ...node.data,
+          label: node.data?.label || node.label || "",
+          config: node.data?.config || node.config || {},
+          triggerEvent: node.data?.triggerEvent || node.triggerEvent || null,
+          ...createHandlers(newId),
+        },
+      };
+    });
+
+    const edgesCopy = templateEdges.map((edge: any, index: number) => ({
+      ...edge,
+      id: `${edge.id || edge.edgeId || `edge-${index}`}-${Date.now()}`,
+      source: idMap.get(edge.source) || edge.source,
+      target: idMap.get(edge.target) || edge.target,
+    }));
+
+    return { nodes: nodesCopy, edges: edgesCopy };
+  }
+
+  function applyTemplateReplace(template: WorkflowTemplate) {
+    const { nodes: newNodes, edges: newEdges } = cloneTemplateGraph(template, 0);
+    setNodes(newNodes);
+    setEdges(newEdges);
+    setShowTemplatePicker(false);
+    toast.success("Template applied. Review and save your workflow.");
+  }
+
+  function applyTemplateInsert(template: WorkflowTemplate) {
+    const maxX = nodes.reduce((acc, node) => Math.max(acc, node.position?.x || 0), 0);
+    const { nodes: newNodes, edges: newEdges } = cloneTemplateGraph(template, maxX + 200);
+    setNodes((prev) => [...prev, ...newNodes]);
+    setEdges((prev) => [...prev, ...newEdges]);
+    setShowTemplatePicker(false);
+    toast.success("Template inserted into your workflow.");
   }
 
   if (loading) {
@@ -1246,6 +1371,15 @@ export default function WorkflowEditor() {
               />
             </div>
             <div className="flex items-center gap-4">
+              <button
+                onClick={() => {
+                  setShowTemplatePicker(true);
+                  loadTemplates();
+                }}
+                className="px-4 py-2 text-sm rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+              >
+                Templates
+              </button>
               <label className="flex items-center gap-2 cursor-pointer group">
                 <input
                   type="checkbox"
@@ -1367,6 +1501,62 @@ export default function WorkflowEditor() {
           </ReactFlow>
         </div>
       </div>
+      {showTemplatePicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full p-6 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-900">Workflow Templates</h3>
+              <button onClick={() => setShowTemplatePicker(false)} className="text-slate-400">✕</button>
+            </div>
+            <div className="flex gap-2 mb-4">
+              <input
+                value={templateSearch}
+                onChange={(e) => setTemplateSearch(e.target.value)}
+                placeholder="Search templates"
+                className="flex-1 px-3 py-2 border border-slate-300 rounded text-sm"
+              />
+              <button
+                onClick={loadTemplates}
+                className="px-4 py-2 bg-blue-600 text-white rounded text-sm"
+              >
+                Search
+              </button>
+            </div>
+
+            {templatesLoading ? (
+              <div className="text-center py-8 text-slate-500">Loading templates...</div>
+            ) : templates.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">No templates found.</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {templates.map((template) => (
+                  <div key={template.id} className="border border-slate-200 rounded-lg p-4">
+                    <h4 className="font-semibold text-slate-900">{template.name}</h4>
+                    <p className="text-sm text-slate-600 mt-1">{template.description}</p>
+                    <div className="text-xs text-slate-500 mt-2">
+                      {template.category} • {template.tags?.join(", ")}
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        onClick={() => applyTemplateReplace(template)}
+                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded text-xs"
+                      >
+                        Replace
+                      </button>
+                      <button
+                        onClick={() => applyTemplateInsert(template)}
+                        className="flex-1 px-3 py-2 border border-slate-300 text-slate-700 rounded text-xs"
+                      >
+                        Insert
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

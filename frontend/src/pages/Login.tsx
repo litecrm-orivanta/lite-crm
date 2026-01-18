@@ -18,7 +18,7 @@ export default function Login() {
         body: JSON.stringify({ email, password }),
       });
 
-      login(res.accessToken || res.token);
+      login(res.accessToken || res.token, res.sessionId);
     } catch (err: any) {
       setError(err?.message || "Login failed");
     }

@@ -14,13 +14,17 @@ import { AdminGuard } from './admin.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { SubscriptionService } from './subscription.service';
 import { PlanType, SubscriptionStatus } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
 
 @Controller('subscriptions')
 @UseGuards(JwtAuthGuard)
 export class SubscriptionController {
   private readonly logger = new Logger(SubscriptionController.name);
 
-  constructor(private subscriptionService: SubscriptionService) {}
+  constructor(
+    private subscriptionService: SubscriptionService,
+    private audit: AuditService,
+  ) {}
 
   /**
    * Get current user's subscription
@@ -35,8 +39,11 @@ export class SubscriptionController {
    * Get plan details
    */
   @Get('plans/:planType')
-  async getPlanDetails(@Param('planType') planType: PlanType) {
-    return this.subscriptionService.getPlanDetails(planType);
+  async getPlanDetails(
+    @Param('planType') planType: PlanType,
+    @Body() body?: { workspaceType?: 'SOLO' | 'ORG' },
+  ) {
+    return this.subscriptionService.getPlanDetails(planType, body?.workspaceType || 'SOLO');
   }
 
   /**
@@ -118,8 +125,84 @@ export class SubscriptionController {
    */
   @Patch(':workspaceId/reactivate')
   @UseGuards(AdminGuard)
-  async reactivateSubscription(@Param('workspaceId') workspaceId: string) {
+  async reactivateSubscription(
+    @Param('workspaceId') workspaceId: string,
+    @CurrentUser() user: { userId: string },
+  ) {
     this.logger.log(`Admin reactivating subscription for workspace: ${workspaceId}`);
-    return this.subscriptionService.reactivateSubscription(workspaceId);
+    const result = await this.subscriptionService.reactivateSubscription(workspaceId);
+    await this.audit.log({
+      actorId: user.userId,
+      action: 'subscription.reactivate',
+      resource: 'subscription',
+      resourceId: workspaceId,
+      workspaceId,
+    });
+    return result;
+  }
+
+  /**
+   * Admin: Update subscription status
+   */
+  @Patch(':workspaceId/status')
+  @UseGuards(AdminGuard)
+  async updateSubscriptionStatus(
+    @Param('workspaceId') workspaceId: string,
+    @CurrentUser() user: { userId: string },
+    @Body() body: { status: SubscriptionStatus },
+  ) {
+    this.logger.log(`Admin updating subscription status for workspace: ${workspaceId} to ${body.status}`);
+    const result = await this.subscriptionService.updateSubscriptionStatus(workspaceId, body.status);
+    await this.audit.log({
+      actorId: user.userId,
+      action: 'subscription.status',
+      resource: 'subscription',
+      resourceId: workspaceId,
+      metadata: { status: body.status },
+      workspaceId,
+    });
+    return result;
+  }
+
+  /**
+   * Admin: Suspend workspace
+   */
+  @Patch(':workspaceId/suspend')
+  @UseGuards(AdminGuard)
+  async suspendWorkspace(
+    @Param('workspaceId') workspaceId: string,
+    @CurrentUser() user: { userId: string },
+  ) {
+    this.logger.log(`Admin suspending workspace: ${workspaceId}`);
+    const result = await this.subscriptionService.suspendWorkspace(workspaceId);
+    await this.audit.log({
+      actorId: user.userId,
+      action: 'workspace.suspend',
+      resource: 'workspace',
+      resourceId: workspaceId,
+      workspaceId,
+    });
+    return result;
+  }
+
+  /**
+   * Admin: Unsuspend workspace
+   */
+  @Patch(':workspaceId/unsuspend')
+  @UseGuards(AdminGuard)
+  async unsuspendWorkspace(
+    @Param('workspaceId') workspaceId: string,
+    @CurrentUser() user: { userId: string },
+  ) {
+    this.logger.log(`Admin unsuspending workspace: ${workspaceId}`);
+    const result = await this.subscriptionService.unsuspendWorkspace(workspaceId);
+    await this.audit.log({
+      actorId: user.userId,
+      action: 'workspace.unsuspend',
+      resource: 'workspace',
+      resourceId: workspaceId,
+      workspaceId,
+    });
+    return result;
   }
 }

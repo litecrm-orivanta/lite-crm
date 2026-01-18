@@ -25,6 +25,17 @@ export async function apiFetch(
       err = { message: res.statusText };
     }
 
+    // 🔒 BUSINESS RULE: WORKSPACE SUSPENDED
+    if (res.status === 403 && err?.code === 'WORKSPACE_SUSPENDED') {
+      // Dispatch custom event to show suspension modal
+      window.dispatchEvent(new CustomEvent('workspace-suspended', { detail: err }));
+      throw {
+        type: "WORKSPACE_SUSPENDED",
+        message: err.message || 'Your account has been suspended. Please contact the administrator or support team to resolve this issue.',
+        code: err.code,
+      };
+    }
+
     // 🔒 BUSINESS RULE: UPGRADE REQUIRED
     if (res.status === 403 && err?.message) {
       throw {

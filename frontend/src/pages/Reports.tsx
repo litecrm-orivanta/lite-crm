@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import AppLayout from "@/layouts/AppLayout";
 import { getAnalytics, getPipelineMetrics, getActivityTrends, getUserPerformance } from "@/api/reports";
+import { useToastContext } from "@/contexts/ToastContext";
 
 export default function Reports() {
   const [analytics, setAnalytics] = useState<any>(null);
@@ -8,6 +9,7 @@ export default function Reports() {
   const [trends, setTrends] = useState<any[]>([]);
   const [userPerformance, setUserPerformance] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const toast = useToastContext();
 
   useEffect(() => {
     loadData();
@@ -28,7 +30,7 @@ export default function Reports() {
       setUserPerformance(performanceData);
     } catch (err: any) {
       console.error("Failed to load reports:", err);
-      alert(`Failed to load reports: ${err.message || "Unknown error"}`);
+      toast.error(`Failed to load reports: ${err.message || "Unknown error"}`);
     } finally {
       setLoading(false);
     }

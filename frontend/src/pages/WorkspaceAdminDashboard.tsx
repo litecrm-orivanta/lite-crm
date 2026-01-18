@@ -3,6 +3,7 @@ import AppLayout from "@/layouts/AppLayout";
 import { useAuth } from "@/auth/AuthContext";
 import { Navigate, Link } from "react-router-dom";
 import { apiFetch } from "@/api/apiFetch";
+import { useToastContext } from "@/contexts/ToastContext";
 
 export default function WorkspaceAdminDashboard() {
   const { role } = useAuth();
@@ -12,6 +13,7 @@ export default function WorkspaceAdminDashboard() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "users" | "payments" | "invoices">("overview");
+  const toast = useToastContext();
 
   useEffect(() => {
     if (role === "ADMIN") {
@@ -34,7 +36,7 @@ export default function WorkspaceAdminDashboard() {
       setInvoices(invoicesData);
     } catch (error) {
       console.error("Failed to load workspace admin data:", error);
-      alert("Failed to load workspace admin dashboard.");
+      toast.error("Failed to load workspace admin dashboard.");
     } finally {
       setLoading(false);
     }
@@ -64,7 +66,7 @@ export default function WorkspaceAdminDashboard() {
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Workspace Admin</h1>
           <p className="text-slate-600">Manage your workspace: users, payments, and invoices</p>
           <p className="text-sm text-blue-600 mt-2">
-            💡 To upgrade your plan, go to <Link to="/upgrade" className="underline font-semibold hover:text-blue-800">Upgrade</Link> page. Payment integration will be added soon.
+            💡 To upgrade your plan, go to <Link to="/upgrade" className="underline font-semibold hover:text-blue-800">Upgrade</Link> page.
           </p>
         </div>
 
@@ -146,7 +148,13 @@ export default function WorkspaceAdminDashboard() {
                 <div>
                   <p className="text-sm text-slate-600">Amount</p>
                   <p className="text-lg font-semibold text-slate-900">
-                    ${stats.subscription?.amount?.toFixed(2) || "0.00"}
+                    {stats.subscription?.amount 
+                      ? new Intl.NumberFormat("en-IN", {
+                          style: "currency",
+                          currency: "INR",
+                          maximumFractionDigits: 0,
+                        }).format(stats.subscription.amount)
+                      : "₹0"}
                   </p>
                 </div>
               </div>
@@ -189,7 +197,11 @@ export default function WorkspaceAdminDashboard() {
                       {stats.recentPayments.slice(0, 5).map((payment: any) => (
                         <tr key={payment.id} className="border-b border-slate-100">
                           <td className="p-2 text-sm text-slate-900 font-medium">
-                            ${payment.amount.toFixed(2)} {payment.currency}
+                            {new Intl.NumberFormat("en-IN", {
+                              style: "currency",
+                              currency: payment.currency === "USD" ? "INR" : (payment.currency || "INR"),
+                              maximumFractionDigits: 2,
+                            }).format(payment.amount)}
                           </td>
                           <td className="p-2 text-sm">
                             <span
@@ -298,7 +310,11 @@ function PaymentsTab({ payments }: { payments: any[] }) {
           {payments.map((payment) => (
             <tr key={payment.id} className="border-b border-slate-100 hover:bg-slate-50">
               <td className="p-4 text-sm text-slate-900 font-medium">
-                ${payment.amount.toFixed(2)} {payment.currency}
+                {new Intl.NumberFormat("en-IN", {
+                  style: "currency",
+                  currency: payment.currency === "USD" ? "INR" : (payment.currency || "INR"),
+                  maximumFractionDigits: 2,
+                }).format(payment.amount)}
               </td>
               <td className="p-4 text-sm text-slate-700">{payment.paymentMethod || "N/A"}</td>
               <td className="p-4 text-sm">
@@ -360,7 +376,11 @@ function InvoicesTab({ invoices }: { invoices: any[] }) {
                 {invoice.invoiceNumber}
               </td>
               <td className="p-4 text-sm text-slate-900 font-medium">
-                ${invoice.amount.toFixed(2)} {invoice.currency}
+                {new Intl.NumberFormat("en-IN", {
+                  style: "currency",
+                  currency: invoice.currency === "USD" ? "INR" : (invoice.currency || "INR"),
+                  maximumFractionDigits: 2,
+                }).format(invoice.amount)}
               </td>
               <td className="p-4 text-sm">
                 <span

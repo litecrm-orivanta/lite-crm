@@ -1,0 +1,84 @@
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768655046759,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768655046760,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:532","message":"loadConfigs error","data":{"errorMessage":"apiFetch is not defined","errorStack":"ReferenceError: apiFetch is not defined\n    at h (http://localhost:8080/assets/index-Cv0LOoNO.js:80:78070)\n    at http://localhost:8080/assets/index-Cv0LOoNO.js:80:77359\n    at ya (http://localhost:80"},"timestamp":1768655046764,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768655076411,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768655076412,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:532","message":"loadConfigs error","data":{"errorMessage":"apiFetch is not defined","errorStack":"ReferenceError: apiFetch is not defined\n    at h (http://localhost:8080/assets/index-Cv0LOoNO.js:80:78070)\n    at http://localhost:8080/assets/index-Cv0LOoNO.js:80:77359\n    at ya (http://localhost:80"},"timestamp":1768655076412,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768662506828,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768662506834,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768662506991,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768665604734,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768665604736,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768665604940,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768665620690,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768665620690,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768665620724,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768675706637,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768675706637,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768675706794,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768679823779,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768679823779,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768679823930,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768680075106,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768680075107,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768680075188,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768680562395,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768680562396,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768680562538,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768681019132,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768681019133,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768681019313,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768681023613,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768681023614,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768681023704,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768684658732,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768684658732,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768684658816,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768722360361,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768722360361,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768722360680,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768724331071,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768724331072,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768724331364,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768724353851,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768724353851,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768724353937,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768724600155,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768724600156,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768724600355,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768724856420,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768724856421,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768724857186,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768725034655,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768725034665,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768725036160,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768725045069,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768725045070,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768725045294,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768725248055,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768725248056,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768725248168,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768725686402,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768725686403,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768725686606,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768725979250,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768725979251,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768725979421,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768731521200,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768731521204,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768731522602,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768731636218,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768731636219,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768731636313,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768732697149,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768732697150,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768732697537,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768732931450,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768732931451,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768732931752,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768733792393,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768733792393,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768733792597,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:520","message":"loadConfigs entry","data":{},"timestamp":1768733825629,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:524","message":"before apiFetch calls","data":{},"timestamp":1768733825630,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"AdminDashboard.tsx:528","message":"apiFetch success","data":{"uatHasData":true,"prodHasData":true},"timestamp":1768733825710,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}

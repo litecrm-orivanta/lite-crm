@@ -93,6 +93,28 @@ export async function updateWorkspace(
   });
 }
 
+export async function updateSubscriptionStatus(
+  workspaceId: string,
+  status: string
+) {
+  return apiFetch(`/subscriptions/${workspaceId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function suspendWorkspace(workspaceId: string) {
+  return apiFetch(`/subscriptions/${workspaceId}/suspend`, {
+    method: 'PATCH',
+  });
+}
+
+export async function unsuspendWorkspace(workspaceId: string) {
+  return apiFetch(`/subscriptions/${workspaceId}/unsuspend`, {
+    method: 'PATCH',
+  });
+}
+
 export async function updateLead(
   leadId: string,
   updates: { name?: string; email?: string; phone?: string; company?: string; stage?: string; ownerId?: string; workspaceId?: string }
@@ -157,4 +179,55 @@ export async function getAllSubscriptions(
 
 export async function getAnalytics() {
   return apiFetch('/admin/analytics');
+}
+
+export async function identifyDummyAccounts() {
+  return apiFetch('/admin/dummy-accounts');
+}
+
+export async function deleteDummyAccounts(workspaceIds: string[]) {
+  return apiFetch('/admin/dummy-accounts', {
+    method: 'DELETE',
+    body: JSON.stringify({ workspaceIds }),
+  });
+}
+
+// Plan Pricing Management
+export interface PlanPricing {
+  planType: string;
+  individualPrice: number;
+  organizationPrice: number;
+  currency: string;
+  billingCycle: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getAllPlanPricing(): Promise<PlanPricing[]> {
+  return apiFetch("/admin/plan-pricing");
+}
+
+export async function getPlanPricing(planType: string): Promise<PlanPricing> {
+  return apiFetch(`/admin/plan-pricing/${planType}`);
+}
+
+export async function updatePlanPricing(
+  planType: string,
+  individualPrice: number,
+  organizationPrice: number,
+  currency?: string,
+  billingCycle?: string,
+  isActive?: boolean
+): Promise<PlanPricing> {
+  return apiFetch(`/admin/plan-pricing/${planType}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      individualPrice,
+      organizationPrice,
+      currency: currency || "INR",
+      billingCycle: billingCycle || "monthly",
+      isActive: isActive !== undefined ? isActive : true,
+    }),
+  });
 }

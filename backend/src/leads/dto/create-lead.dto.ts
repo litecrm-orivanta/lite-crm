@@ -1,4 +1,5 @@
 import { IsEmail, IsOptional, IsString } from 'class-validator';
+import { IsIndianPhone } from '../../common/validators/indian-phone.validator';
 
 export class CreateLeadDto {
   @IsString()
@@ -6,6 +7,7 @@ export class CreateLeadDto {
 
   @IsOptional()
   @IsString()
+  @IsIndianPhone()
   phone?: string;
 
   @IsOptional()

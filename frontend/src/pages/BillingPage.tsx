@@ -4,6 +4,9 @@ import AppLayout from "@/layouts/AppLayout";
 import { getMySubscription, cancelSubscription, Subscription, getPlanDetails, PlanDetails } from "@/api/subscriptions";
 import { getMyPayments, Payment } from "@/api/payments";
 import { getMyInvoices, Invoice } from "@/api/invoices";
+import { useToastContext } from "@/contexts/ToastContext";
+import CancelSubscriptionModal from "@/components/CancelSubscriptionModal";
+import { getWorkspaceInfo } from "@/api/workspace";
 
 const PLAN_TYPES = ["FREE", "STARTER", "PROFESSIONAL", "BUSINESS"];
 
@@ -17,11 +20,14 @@ const PLAN_PRICING: Record<string, { individual: number; organization: number }>
 
 export default function BillingPage() {
   const navigate = useNavigate();
+  const toast = useToastContext();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [workspaceType, setWorkspaceType] = useState<"individual" | "organization">("individual");
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"subscription" | "payments" | "invoices">("subscription");
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -30,17 +36,23 @@ export default function BillingPage() {
   async function loadData() {
     try {
       setLoading(true);
-      const [subData, paymentsData, invoicesData] = await Promise.all([
+      const [subData, paymentsData, invoicesData, workspaceData] = await Promise.all([
         getMySubscription(),
         getMyPayments(),
         getMyInvoices(),
+        getWorkspaceInfo().catch(() => null),
       ]);
       setSubscription(subData);
       setPayments(paymentsData);
       setInvoices(invoicesData);
+      if (workspaceData?.type === "ORG") {
+        setWorkspaceType("organization");
+      } else {
+        setWorkspaceType("individual");
+      }
     } catch (error) {
       console.error("Failed to load billing data:", error);
-      alert("Failed to load billing information");
+      toast.error("Failed to load billing information");
     } finally {
       setLoading(false);
     }
@@ -51,16 +63,18 @@ export default function BillingPage() {
     navigate("/upgrade");
   }
 
-  async function handleCancel() {
-    const reason = prompt("Please provide a reason for cancellation (optional):");
-    if (reason === null) return; // User cancelled
+  function handleCancel() {
+    setShowCancelModal(true);
+  }
 
+  async function handleConfirmCancel(reason: string) {
     try {
       await cancelSubscription(reason || undefined);
       await loadData();
-      alert("Subscription cancelled successfully");
+      toast.success("Subscription cancelled successfully");
     } catch (error: any) {
-      alert(`Failed to cancel subscription: ${error.message || "Unknown error"}`);
+      toast.error(`Failed to cancel subscription: ${error.message || "Unknown error"}`);
+      throw error;
     }
   }
 
@@ -124,6 +138,7 @@ export default function BillingPage() {
         {activeTab === "subscription" && subscription && (
           <SubscriptionTab
             subscription={subscription}
+            workspaceType={workspaceType}
             onUpgrade={handleUpgrade}
             onCancel={handleCancel}
           />
@@ -139,16 +154,24 @@ export default function BillingPage() {
           <InvoicesTab invoices={invoices} />
         )}
       </div>
+
+      <CancelSubscriptionModal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        onConfirm={handleConfirmCancel}
+      />
     </AppLayout>
   );
 }
 
 function SubscriptionTab({
   subscription,
+  workspaceType,
   onUpgrade,
   onCancel,
 }: {
   subscription: Subscription;
+  workspaceType: "individual" | "organization";
   onUpgrade: (planType: string) => void;
   onCancel: () => void;
 }) {
@@ -235,10 +258,18 @@ function SubscriptionTab({
         </div>
       </div>
 
-      {/* Available Plans */}
+      {/* Available Plans for Current Workspace Type */}
       {!loadingPlans && (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">Available Plans</h2>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-slate-900">
+              Available Plans for {workspaceType === "individual" ? "Individual" : "Organization"} Account
+            </h2>
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full text-sm">
+              <span className="text-slate-600">Current Type:</span>
+              <span className="font-semibold text-slate-900 capitalize">{workspaceType}</span>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {PLAN_TYPES.map((planType) => {
               const plan = planDetails[planType];
@@ -247,7 +278,18 @@ function SubscriptionTab({
               const isCurrent = subscription.planType === planType;
               const isUpgrade = PLAN_TYPES.indexOf(planType) > PLAN_TYPES.indexOf(subscription.planType);
               const pricing = PLAN_PRICING[planType];
-              const displayPrice = pricing?.organization || pricing?.individual || plan.amount;
+              const displayPrice = workspaceType === "organization" 
+                ? (pricing?.organization || plan.amount)
+                : (pricing?.individual || plan.amount);
+              
+              // Determine if plan belongs to current workspace type
+              const isCurrentTypePlan = (planType === "BUSINESS" && workspaceType === "organization") ||
+                (planType !== "BUSINESS" && true); // STARTER, PROFESSIONAL work for both
+              
+              // Filter: Only show BUSINESS for organization type, show others for both
+              if (planType === "BUSINESS" && workspaceType === "individual") {
+                return null; // Don't show BUSINESS plan for individual workspace
+              }
 
               return (
                 <div
@@ -336,6 +378,68 @@ function SubscriptionTab({
                       {isUpgrade ? "Upgrade" : "Downgrade"}
                     </button>
                   )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Plans for Other Workspace Type */}
+      {!loadingPlans && (
+        <div className="bg-slate-50 p-6 rounded-xl shadow-sm border-2 border-dashed border-slate-300 mb-6">
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-slate-900 mb-2">
+              {workspaceType === "individual" 
+                ? "Switching to Organization? Check out these plans..." 
+                : "Switching to Individual? Check out these plans..."}
+            </h2>
+            <p className="text-sm text-slate-600">
+              {workspaceType === "individual"
+                ? "Organization plans offer team collaboration, user management, and advanced features."
+                : "Individual plans are perfect for solo entrepreneurs with essential CRM features."}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {PLAN_TYPES.filter(planType => {
+              // Show opposite type plans
+              if (workspaceType === "individual") {
+                // For individual, show organization plans (but not BUSINESS in this section, it's shown above if applicable)
+                return planType !== "BUSINESS"; // BUSINESS already shown above for organization
+              } else {
+                // For organization, show individual plans (STARTER, PROFESSIONAL)
+                return planType !== "BUSINESS" && planType !== "FREE";
+              }
+            }).map((planType) => {
+              const plan = planDetails[planType];
+              if (!plan) return null;
+
+              const pricing = PLAN_PRICING[planType];
+              const displayPrice = workspaceType === "individual"
+                ? (pricing?.organization || plan.amount)
+                : (pricing?.individual || plan.amount);
+
+              return (
+                <div
+                  key={planType}
+                  className="p-4 rounded-lg border-2 border-slate-300 bg-white hover:border-slate-400 hover:shadow-md transition-all"
+                >
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">{plan.name}</h3>
+                  <p className="text-2xl font-bold text-slate-900 mb-4">
+                    {displayPrice > 0 ? formatPrice(displayPrice) : "Free"}
+                    {displayPrice > 0 && <span className="text-sm font-normal text-slate-600">/mo</span>}
+                  </p>
+                  <p className="text-sm text-slate-600 mb-4">
+                    {workspaceType === "individual"
+                      ? "Includes team collaboration and user management features."
+                      : "Perfect for solo entrepreneurs with essential CRM features."}
+                  </p>
+                  <button
+                    onClick={() => onUpgrade(planType)}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  >
+                    View on Upgrade Page
+                  </button>
                 </div>
               );
             })}

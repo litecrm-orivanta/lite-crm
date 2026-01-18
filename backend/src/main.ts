@@ -4,6 +4,19 @@ import { AppModule } from './app.module';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
 
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not defined');
+  }
+
+  const encryptionKey = process.env.ENCRYPTION_KEY || 'default-key-change-in-production';
+  if (encryptionKey === 'default-key-change-in-production' || encryptionKey.length < 32) {
+    console.warn('⚠️  ENCRYPTION_KEY is weak or not set. Set a 32+ char key in production.');
+  }
+
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.warn('⚠️  SMTP credentials are incomplete. Email sending may fail.');
+  }
+
   // CORS configuration - allow requests from frontend
   // In production, FRONTEND_URL will be set to the GCP VM IP or domain
   const frontendUrl = process.env.FRONTEND_URL;

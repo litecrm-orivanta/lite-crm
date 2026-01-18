@@ -1,6 +1,9 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import Dashboard from "./pages/Dashboard";
 import LeadDetail from "./pages/LeadDetail";
 import GoogleCallback from "./pages/GoogleCallback";
@@ -13,21 +16,42 @@ import WorkflowSetupGuide from "./pages/WorkflowSetupGuide";
 import WorkflowConfiguration from "./pages/WorkflowConfiguration";
 import DocsPage from "./pages/DocsPage";
 import Settings from "./pages/Settings";
+import Notifications from "./pages/Notifications";
 import AdminDashboard from "./pages/AdminDashboard";
 import WorkspaceAdminDashboard from "./pages/WorkspaceAdminDashboard";
 import BillingPage from "./pages/BillingPage";
 import Reports from "./pages/Reports";
 import Calendar from "./pages/Calendar";
 import Kanban from "./pages/Kanban";
+import SuspensionModal from "./components/SuspensionModal";
 import { useAuth } from "./auth/AuthContext";
 
 export default function App() {
   const { token } = useAuth();
+  const [isSuspended, setIsSuspended] = useState(false);
+  const [suspensionMessage, setSuspensionMessage] = useState<string>();
+
+  useEffect(() => {
+    const handleSuspension = (event: CustomEvent) => {
+      setIsSuspended(true);
+      setSuspensionMessage(event.detail?.message);
+    };
+
+    window.addEventListener('workspace-suspended', handleSuspension as EventListener);
+
+    return () => {
+      window.removeEventListener('workspace-suspended', handleSuspension as EventListener);
+    };
+  }, []);
 
   return (
-    <Routes>
+    <>
+      <SuspensionModal isOpen={isSuspended} message={suspensionMessage} />
+      <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
       <Route path="/auth/google/callback" element={<GoogleCallback />} />
 
       {/* Invite acceptance (no auth required) */}
@@ -88,6 +112,11 @@ export default function App() {
       />
 
       <Route
+        path="/notifications"
+        element={token ? <Notifications /> : <Navigate to="/login" />}
+      />
+
+      <Route
         path="/admin"
         element={token ? <AdminDashboard /> : <Navigate to="/login" />}
       />
@@ -117,5 +146,6 @@ export default function App() {
         element={token ? <Kanban /> : <Navigate to="/login" />}
       />
     </Routes>
+    </>
   );
 }

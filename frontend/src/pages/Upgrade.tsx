@@ -1,17 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "@/layouts/AppLayout";
-import LiteCRMLogo, { LiteCRMLogoIcon } from "@/components/LiteCRMLogo";
-import { ZohoLogo, HubSpotLogo, PipedriveLogo, SalesforceLogo } from "@/components/CompanyLogos";
+import LiteCRMLogo from "@/components/LiteCRMLogo";
+import { createRazorpayOrder, verifyRazorpayPayment } from "@/api/payments";
+import { PlanPricing } from "@/api/admin";
+import { apiFetch } from "@/api/apiFetch";
+import { useToastContext } from "@/contexts/ToastContext";
+import PaymentSuccessModal from "@/components/PaymentSuccessModal";
+import OrganizationDetailsModal from "@/components/OrganizationDetailsModal";
+import ConfirmationModal from "@/components/ConfirmationModal";
+import { updateWorkspaceType, getWorkspaceInfo } from "@/api/workspace";
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 type BillingPeriod = "monthly" | "quarterly" | "yearly";
 type PlanType = "individual" | "organization";
 
-// Plan pricing (original monthly prices)
-const PLAN_PRICES = {
+// Default plan pricing (fallback if API fails)
+const DEFAULT_PLAN_PRICES = {
   individual: {
     starter: 899,
     professional: 1599,
-    business: 4999, // Not used in individual, but keeping for consistency
+    business: 4999,
   },
   organization: {
     starter: 1999,
@@ -28,20 +41,20 @@ const DISCOUNTS = {
 };
 
 const INDIVIDUAL_FEATURES = [
-  { label: "Unlimited Leads", starter: true, professional: true, business: true },
-  { label: "Users", starter: "1", professional: "1", business: "1" },
-  { label: "Lead Assignment", starter: true, professional: true, business: true },
-  { label: "Tasks & Follow-ups", starter: true, professional: true, business: true },
-  { label: "Notes & Activity Timeline", starter: true, professional: true, business: true },
-  { label: "Native Workflow Automation", starter: true, professional: true, business: true },
-  { label: "Unlimited Custom Workflows", starter: true, professional: true, business: true },
-  { label: "Multi-Channel Messaging", starter: true, professional: true, business: true },
-  { label: "Email Templates", starter: true, professional: true, business: true },
-  { label: "CSV Export & Bulk Operations", starter: true, professional: true, business: true },
-  { label: "Kanban Board & Calendar View", starter: true, professional: true, business: true },
-  { label: "Reports & Analytics", starter: true, professional: true, business: true },
-  { label: "Email Support", starter: "48h response", professional: "24h response", business: "4h response" },
-  { label: "Priority Support", starter: false, professional: false, business: true },
+  { label: "Unlimited Leads", starter: true, professional: true },
+  { label: "Users", starter: "1", professional: "1" },
+  { label: "Lead Assignment", starter: true, professional: true },
+  { label: "Tasks & Follow-ups", starter: true, professional: true },
+  { label: "Notes & Activity Timeline", starter: true, professional: true },
+  { label: "Native Workflow Automation", starter: true, professional: true },
+  { label: "Unlimited Custom Workflows", starter: true, professional: true },
+  { label: "Multi-Channel Messaging", starter: true, professional: true },
+  { label: "Email Templates", starter: true, professional: true },
+  { label: "CSV Export & Bulk Operations", starter: true, professional: true },
+  { label: "Kanban Board & Calendar View", starter: true, professional: true },
+  { label: "Reports & Analytics", starter: true, professional: true },
+  { label: "Email Support", starter: "48h response", professional: "24h response" },
+  { label: "Priority Support", starter: false, professional: false },
 ];
 
 const ORGANIZATION_FEATURES = [
@@ -64,151 +77,311 @@ const ORGANIZATION_FEATURES = [
   { label: "Priority Support", starter: false, professional: false, business: true },
 ];
 
-const COMPETITOR_COMPARISON = [
-  {
-    feature: "Pricing (Entry)",
-    liteCRM: { value: "₹899/month", highlight: true, badge: "Best Value" },
-    zoho: "₹1,400/month",
-    hubspot: "Free (limited)",
-    pipedrive: "₹1,200/month",
-    salesforce: "₹2,000/month",
-  },
-  {
-    feature: "Pricing (Mid-Tier)",
-    liteCRM: { value: "₹1,599/month", highlight: true },
-    zoho: "₹2,800/month",
-    hubspot: "₹8,000/month",
-    pipedrive: "₹2,000/month",
-    salesforce: "₹6,000/month",
-  },
-  {
-    feature: "Pricing (Team)",
-    liteCRM: { value: "₹3,999/month", highlight: true },
-    zoho: "₹5,600/month",
-    hubspot: "₹24,000/month",
-    pipedrive: "₹2,500/month",
-    salesforce: "₹15,000+/month",
-  },
-  {
-    feature: "Unlimited Leads",
-    liteCRM: { value: "Yes", highlight: true },
-    zoho: "Limited",
-    hubspot: "Limited",
-    pipedrive: "Limited",
-    salesforce: "Limited",
-  },
-  {
-    feature: "Native Workflow Automation",
-    liteCRM: { value: "Built-in", highlight: true },
-    zoho: "Via Zapier",
-    hubspot: "Native",
-    pipedrive: "Limited",
-    salesforce: "Advanced",
-  },
-  {
-    feature: "Unlimited Workflows",
-    liteCRM: { value: "Yes", highlight: true },
-    zoho: "Templates only",
-    hubspot: "Yes",
-    pipedrive: "Basic only",
-    salesforce: "Yes",
-  },
-  {
-    feature: "WhatsApp Integration",
-    liteCRM: { value: "Native", highlight: true },
-    zoho: "Third-party",
-    hubspot: "Third-party",
-    pipedrive: "Third-party",
-    salesforce: "Third-party",
-  },
-  {
-    feature: "Telegram Integration",
-    liteCRM: { value: "Native", highlight: true },
-    zoho: "No",
-    hubspot: "No",
-    pipedrive: "No",
-    salesforce: "No",
-  },
-  {
-    feature: "SMS Integration",
-    liteCRM: { value: "Native", highlight: true },
-    zoho: "Third-party",
-    hubspot: "Third-party",
-    pipedrive: "Third-party",
-    salesforce: "Third-party",
-  },
-  {
-    feature: "ChatGPT Integration",
-    liteCRM: { value: "Native", highlight: true },
-    zoho: "No",
-    hubspot: "Limited",
-    pipedrive: "No",
-    salesforce: "Limited",
-  },
-  {
-    feature: "Self-Hosted Option",
-    liteCRM: { value: "Available", highlight: true },
-    zoho: "No",
-    hubspot: "No",
-    pipedrive: "No",
-    salesforce: "No",
-  },
-  {
-    feature: "Open Source",
-    liteCRM: { value: "Yes", highlight: true },
-    zoho: "No",
-    hubspot: "No",
-    pipedrive: "No",
-    salesforce: "No",
-  },
-  {
-    feature: "Setup Time",
-    liteCRM: { value: "Minutes", highlight: true },
-    zoho: "Hours",
-    hubspot: "Hours to days",
-    pipedrive: "Hours",
-    salesforce: "Days to weeks",
-  },
-  {
-    feature: "Data Ownership",
-    liteCRM: { value: "Full control", highlight: true },
-    zoho: "Vendor controlled",
-    hubspot: "Vendor controlled",
-    pipedrive: "Vendor controlled",
-    salesforce: "Vendor controlled",
-  },
-  {
-    feature: "Free Trial",
-    liteCRM: "3 days",
-    zoho: "15 days",
-    hubspot: "Free tier available",
-    pipedrive: "14 days",
-    salesforce: "30 days",
-  },
-];
 
 export default function Upgrade() {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
+  const [planPricing, setPlanPricing] = useState<PlanPricing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [purchasedPlanType, setPurchasedPlanType] = useState<string>("");
+  const [workspaceType, setWorkspaceType] = useState<"individual" | "organization">("individual");
+  const [showOrgModal, setShowOrgModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingPlanSelection, setPendingPlanSelection] = useState<{
+    backendPlanType: string;
+    planType: "individual" | "organization";
+    totalPrice: number;
+  } | null>(null);
+  const [pendingWorkspaceSwitch, setPendingWorkspaceSwitch] = useState<{
+    backendPlanType: string;
+    totalPrice: number;
+  } | null>(null);
+  const toast = useToastContext();
+
+  // Fetch dynamic pricing and workspace type from API
+  useEffect(() => {
+    async function loadPricing() {
+      try {
+        const pricing = await apiFetch<PlanPricing[]>("/plan-pricing");
+        setPlanPricing(pricing);
+        
+        // Get workspace type to show correct features in success modal
+        try {
+          const workspace = await getWorkspaceInfo();
+          if (workspace?.type === "ORG") {
+            setWorkspaceType("organization");
+          } else {
+            setWorkspaceType("individual");
+          }
+        } catch (error) {
+          // Default to individual if API fails
+          console.error("Failed to load workspace info:", error);
+        }
+      } catch (error) {
+        console.error("Failed to load plan pricing:", error);
+        // Use default pricing if API fails
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadPricing();
+  }, []);
+
+  // Helper function to get price from API or fallback to default
+  const getPrice = (planType: string, workspaceType: "individual" | "organization"): number => {
+    const pricing = planPricing.find((p) => p.planType === planType.toUpperCase());
+    if (pricing) {
+      return workspaceType === "organization" ? pricing.organizationPrice : pricing.individualPrice;
+    }
+    // Fallback to default
+    const planKey = planType.toLowerCase() as keyof typeof DEFAULT_PLAN_PRICES.individual;
+    return DEFAULT_PLAN_PRICES[workspaceType][planKey] || 0;
+  };
+
+  // Get current pricing (use API data if available, otherwise defaults)
+  const PLAN_PRICES = {
+    individual: {
+      starter: getPrice("STARTER", "individual"),
+      professional: getPrice("PROFESSIONAL", "individual"),
+      business: getPrice("BUSINESS", "individual"),
+    },
+    organization: {
+      starter: getPrice("STARTER", "organization"),
+      professional: getPrice("PROFESSIONAL", "organization"),
+      business: getPrice("BUSINESS", "organization"),
+    },
+  };
+
+  // Move openRazorpayCheckout inside component to access state setters
+  async function openRazorpayCheckout(order: any, planType: string) {
+    if (!order.key_id) {
+      toast.error("Payment gateway configuration missing. Please contact support.");
+      return;
+    }
+
+    const options = {
+      key: order.key_id, // Razorpay Key ID from backend
+      amount: order.amount,
+      currency: order.currency,
+      name: 'Lite CRM',
+      description: `Subscription for ${planType} plan`,
+      order_id: order.id,
+      handler: async function (response: any) {
+        try {
+          const result = await verifyRazorpayPayment({
+            paymentId: response.razorpay_payment_id,
+            orderId: response.razorpay_order_id,
+            signature: response.razorpay_signature,
+            environment: 'UAT',
+          });
+          
+          // Extract plan type from verification result or order
+          const activatedPlanType = result?.subscription?.planType || planType;
+          setPurchasedPlanType(activatedPlanType);
+          setShowSuccessModal(true);
+        } catch (error: any) {
+          toast.error(`Payment verification failed: ${error.message || "Unknown error"}`);
+        }
+      },
+      prefill: {
+        email: '',
+        contact: '',
+      },
+      theme: {
+        color: '#1e293b',
+      },
+    };
+
+    const razorpay = new window.Razorpay(options);
+    razorpay.open();
+  }
+
+  // Handle plan selection with workspace type checking
+  async function handlePlanSelection(
+    backendPlanType: string,
+    selectedPlanType: "individual" | "organization",
+    totalPrice: number,
+  ) {
+    // Check if workspace type switch is needed
+    if (selectedPlanType !== workspaceType) {
+      // INDIVIDUAL → ORGANIZATION: Show org details modal
+      if (selectedPlanType === "organization") {
+        setPendingPlanSelection({ backendPlanType, planType: selectedPlanType, totalPrice });
+        setShowOrgModal(true);
+        return;
+      }
+      // ORGANIZATION → INDIVIDUAL: Show confirmation modal
+      else {
+        setPendingWorkspaceSwitch({ backendPlanType, totalPrice });
+        setShowConfirmModal(true);
+        return;
+      }
+    }
+
+    // Proceed with payment
+    try {
+      const order = await createRazorpayOrder({
+        amount: totalPrice,
+        currency: 'INR',
+        planType: backendPlanType,
+        billingPeriod: billingPeriod,
+        environment: 'UAT',
+      });
+
+      if (!window.Razorpay) {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = () => openRazorpayCheckout(order, backendPlanType);
+        document.body.appendChild(script);
+      } else {
+        openRazorpayCheckout(order, backendPlanType);
+      }
+    } catch (error: any) {
+      toast.error(`Failed to initiate payment: ${error.message || "Unknown error"}`);
+    }
+  }
+
+  // Handle workspace type switch confirmation (Organization → Individual)
+  async function handleWorkspaceSwitchConfirm() {
+    if (!pendingWorkspaceSwitch) return;
+
+    try {
+      await updateWorkspaceType({ type: "SOLO" });
+      setWorkspaceType("individual");
+      toast.success("Switched to Individual account");
+      setShowConfirmModal(false);
+      
+      // Reload workspace info to refresh
+      const workspace = await getWorkspaceInfo();
+      if (workspace?.type === "ORG") {
+        setWorkspaceType("organization");
+      } else {
+        setWorkspaceType("individual");
+      }
+
+      // Proceed with payment
+      const order = await createRazorpayOrder({
+        amount: pendingWorkspaceSwitch.totalPrice,
+        currency: 'INR',
+        planType: pendingWorkspaceSwitch.backendPlanType,
+        billingPeriod: billingPeriod,
+        environment: 'UAT',
+      });
+
+      if (!window.Razorpay) {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = () => openRazorpayCheckout(order, pendingWorkspaceSwitch.backendPlanType);
+        document.body.appendChild(script);
+      } else {
+        openRazorpayCheckout(order, pendingWorkspaceSwitch.backendPlanType);
+      }
+
+      setPendingWorkspaceSwitch(null);
+    } catch (error: any) {
+      toast.error(`Failed to switch workspace type: ${error.message}`);
+      setShowConfirmModal(false);
+      setPendingWorkspaceSwitch(null);
+    }
+  }
+
+  // Handle organization details confirmation
+  async function handleOrgDetailsConfirm(orgName: string, teamSize: string) {
+    if (!pendingPlanSelection) return;
+
+    try {
+      // Update workspace type to ORG
+      await updateWorkspaceType({
+        type: "ORG",
+        name: orgName,
+        teamSize: teamSize,
+      });
+      setWorkspaceType("organization");
+      toast.success("Switched to Organization account");
+      setShowOrgModal(false);
+
+      // Proceed with payment
+      const order = await createRazorpayOrder({
+        amount: pendingPlanSelection.totalPrice,
+        currency: 'INR',
+        planType: pendingPlanSelection.backendPlanType,
+        billingPeriod: billingPeriod,
+        environment: 'UAT',
+      });
+
+      if (!window.Razorpay) {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = () => openRazorpayCheckout(order, pendingPlanSelection.backendPlanType);
+        document.body.appendChild(script);
+      } else {
+        openRazorpayCheckout(order, pendingPlanSelection.backendPlanType);
+      }
+
+      setPendingPlanSelection(null);
+    } catch (error: any) {
+      toast.error(`Failed to update workspace: ${error.message || "Unknown error"}`);
+    }
+  }
 
   return (
     <AppLayout>
+      <PaymentSuccessModal
+        isOpen={showSuccessModal}
+        planType={purchasedPlanType}
+        workspaceType={workspaceType}
+        onClose={() => {
+          setShowSuccessModal(false);
+          window.location.href = '/';
+        }}
+      />
+      <OrganizationDetailsModal
+        isOpen={showOrgModal}
+        onConfirm={handleOrgDetailsConfirm}
+        onCancel={() => {
+          setShowOrgModal(false);
+          setPendingPlanSelection(null);
+        }}
+      />
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        title="Switch to Individual Account"
+        message="You're switching from Organization to Individual account. Your organization details will be removed. Continue?"
+        confirmText="Yes, Switch"
+        cancelText="Cancel"
+        onConfirm={handleWorkspaceSwitchConfirm}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setPendingWorkspaceSwitch(null);
+        }}
+        variant="warning"
+      />
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           {/* Premium Header */}
           <div className="text-center mb-16">
-            <div className="flex justify-center mb-6">
-              <LiteCRMLogo size="lg" />
-            </div>
+          <div className="flex justify-center mb-6">
+            <LiteCRMLogo size="lg" />
+          </div>
             <h1 className="text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent mb-6">
-              Choose Your Plan
-            </h1>
+            Choose Your Plan
+          </h1>
             <p className="text-xl text-slate-600 mb-4 max-w-2xl mx-auto">
               The most affordable CRM with unlimited leads, native automation, and self-hosted option
-            </p>
+          </p>
             <p className="text-sm text-slate-500 max-w-xl mx-auto">
               All plans include workflow automation, unlimited leads, and multi-channel messaging
-            </p>
+          </p>
+          {/* Current Workspace Type Badge */}
+          <div className="mt-6 flex justify-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-full">
+              <span className="text-sm text-slate-600">Current Account Type:</span>
+              <span className="text-sm font-semibold text-slate-900 capitalize">
+                {workspaceType === "individual" ? "Individual" : "Organization"}
+              </span>
+            </div>
           </div>
+        </div>
 
           {/* Billing Period Selector */}
           <div className="flex justify-center mb-12">
@@ -263,34 +436,36 @@ export default function Upgrade() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12 max-w-4xl mx-auto">
-              <PlanCard
-                name="Starter"
+            <PlanCard
+              name="Starter"
                 originalPrice={PLAN_PRICES.individual.starter}
                 billingPeriod={billingPeriod}
-                subtitle="Perfect for individuals getting started"
-                features={[
-                  "Unlimited leads",
-                  "1 user",
+              subtitle="Perfect for individuals getting started"
+              features={[
+                "Unlimited leads",
+                "1 user",
                   "Native workflow automation",
                   "Multi-channel messaging",
-                  "Tasks & follow-ups",
+                "Tasks & follow-ups",
                   "CSV export & bulk operations",
                   "Email support (48h)",
-                ]}
+              ]}
                 cta="Get Started"
-                highlight={false}
-                planType="individual"
-              />
+              highlight={false}
+              planType="individual"
+              toast={toast}
+              onSelectPlan={handlePlanSelection}
+            />
 
-              <PlanCard
-                name="Professional"
+            <PlanCard
+              name="Professional"
                 originalPrice={PLAN_PRICES.individual.professional}
                 billingPeriod={billingPeriod}
-                subtitle="Enhanced features for professionals"
-                badge="Most Popular"
-                features={[
-                  "Everything in Starter",
-                  "1 user",
+              subtitle="Enhanced features for professionals"
+              badge="Most Popular"
+              features={[
+                "Everything in Starter",
+                "1 user",
                   "Advanced workflow features",
                   "Priority support (24h)",
                   "Custom workflow templates",
@@ -298,9 +473,11 @@ export default function Upgrade() {
                   "Email templates",
                 ]}
                 cta="Get Started"
-                highlight={true}
-                planType="individual"
-              />
+              highlight={true}
+              planType="individual"
+              toast={toast}
+              onSelectPlan={handlePlanSelection}
+            />
             </div>
           </div>
 
@@ -329,6 +506,8 @@ export default function Upgrade() {
                 cta="Get Started"
                 highlight={false}
                 planType="organization"
+                toast={toast}
+                onSelectPlan={handlePlanSelection}
               />
 
               <PlanCard
@@ -349,14 +528,16 @@ export default function Upgrade() {
                 cta="Get Started"
                 highlight={true}
                 planType="organization"
-              />
+                toast={toast}
+                onSelectPlan={handlePlanSelection}
+            />
 
-              <PlanCard
-                name="Business"
+            <PlanCard
+              name="Business"
                 originalPrice={PLAN_PRICES.organization.business}
                 billingPeriod={billingPeriod}
                 subtitle="For serious sales teams"
-                features={[
+              features={[
                   "Everything in Professional Team",
                   "Unlimited users",
                   "Dedicated workflow instance",
@@ -366,101 +547,11 @@ export default function Upgrade() {
                   "API access",
                 ]}
                 cta="Get Started"
-                highlight={false}
+              highlight={false}
                 planType="organization"
-              />
-            </div>
-          </div>
-
-          {/* Premium Competitor Comparison */}
-          <div className="mb-16">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-slate-900 mb-3">
-                How We Compare to Competitors
-              </h2>
-              <p className="text-lg text-slate-600">
-                See why Lite CRM is the best value in the market
-              </p>
-            </div>
-
-            <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-2xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900">
-                      <th className="px-8 py-6 text-left">
-                        <span className="text-white font-bold text-lg">Feature</span>
-                      </th>
-                      <th className="px-8 py-6 text-center">
-                        <div className="flex flex-col items-center gap-2">
-                          <LiteCRMLogoIcon size="md" />
-                          <span className="text-white font-bold">Lite CRM</span>
-                        </div>
-                      </th>
-                      <th className="px-8 py-6 text-center bg-slate-50">
-                        <div className="flex flex-col items-center gap-2">
-                          <ZohoLogo />
-                        </div>
-                      </th>
-                      <th className="px-8 py-6 text-center bg-slate-50">
-                        <div className="flex flex-col items-center gap-2">
-                          <HubSpotLogo />
-                        </div>
-                      </th>
-                      <th className="px-8 py-6 text-center bg-slate-50">
-                        <div className="flex flex-col items-center gap-2">
-                          <PipedriveLogo />
-                        </div>
-                      </th>
-                      <th className="px-8 py-6 text-center bg-slate-50">
-                        <div className="flex flex-col items-center gap-2">
-                          <SalesforceLogo />
-                        </div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {COMPETITOR_COMPARISON.map((row, idx) => (
-                      <tr
-                        key={row.feature}
-                        className={`transition-colors ${
-                          idx % 2 === 0 ? "bg-white" : "bg-slate-50/50"
-                        } hover:bg-blue-50/50`}
-                      >
-                        <td className="px-8 py-5">
-                          <span className="font-semibold text-slate-900">{row.feature}</span>
-                        </td>
-                        <td className="px-8 py-5 text-center bg-blue-50/50">
-                          {typeof row.liteCRM === "object" ? (
-                            <div className="flex flex-col items-center gap-1">
-                              <span
-                                className={`font-bold ${
-                                  row.liteCRM.highlight
-                                    ? "text-green-600 text-base"
-                                    : "text-slate-700"
-                                }`}
-                              >
-                                {row.liteCRM.value}
-                              </span>
-                              {row.liteCRM.badge && (
-                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                                  {row.liteCRM.badge}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="font-medium text-slate-700">{row.liteCRM}</span>
-                          )}
-                        </td>
-                        <td className="px-8 py-5 text-center text-slate-600">{row.zoho}</td>
-                        <td className="px-8 py-5 text-center text-slate-600">{row.hubspot}</td>
-                        <td className="px-8 py-5 text-center text-slate-600">{row.pipedrive}</td>
-                        <td className="px-8 py-5 text-center text-slate-600">{row.salesforce}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              toast={toast}
+              onSelectPlan={handlePlanSelection}
+            />
             </div>
           </div>
 
@@ -472,55 +563,55 @@ export default function Upgrade() {
                 <h3 className="text-xl font-bold text-white">Individual Plans Features</h3>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+            <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b-2 border-slate-200">
-                    <tr>
+                <tr>
                       <th className="px-6 py-4 text-left font-semibold text-slate-900">Feature</th>
-                      <th className="px-6 py-4 text-center font-semibold text-slate-900">Starter</th>
-                      <th className="px-6 py-4 text-center font-semibold text-blue-600">Professional</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {INDIVIDUAL_FEATURES.map((f, idx) => (
-                      <tr key={f.label} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
-                        <td className="px-6 py-3 text-slate-700 font-medium">{f.label}</td>
-                        <FeatureCell value={f.starter} />
-                        <FeatureCell value={f.professional} highlight />
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                  <th className="px-6 py-4 text-center font-semibold text-slate-900">Starter</th>
+                  <th className="px-6 py-4 text-center font-semibold text-blue-600">Professional</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {INDIVIDUAL_FEATURES.map((f, idx) => (
+                  <tr key={f.label} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
+                    <td className="px-6 py-3 text-slate-700 font-medium">{f.label}</td>
+                    <FeatureCell value={f.starter} />
+                    <FeatureCell value={f.professional} highlight />
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
             {/* Organization Features */}
             <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-xl overflow-hidden">
               <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4">
                 <h3 className="text-xl font-bold text-white">Organization Plans Features</h3>
-              </div>
+          </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+            <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b-2 border-slate-200">
-                    <tr>
+                <tr>
                       <th className="px-6 py-4 text-left font-semibold text-slate-900">Feature</th>
-                      <th className="px-6 py-4 text-center font-semibold text-slate-900">Starter</th>
-                      <th className="px-6 py-4 text-center font-semibold text-blue-600">Professional</th>
-                      <th className="px-6 py-4 text-center font-semibold text-slate-900">Business</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {ORGANIZATION_FEATURES.map((f, idx) => (
-                      <tr key={f.label} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
-                        <td className="px-6 py-3 text-slate-700 font-medium">{f.label}</td>
-                        <FeatureCell value={f.starter} />
-                        <FeatureCell value={f.professional} highlight />
-                        <FeatureCell value={f.business} />
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                  <th className="px-6 py-4 text-center font-semibold text-slate-900">Starter</th>
+                  <th className="px-6 py-4 text-center font-semibold text-blue-600">Professional</th>
+                  <th className="px-6 py-4 text-center font-semibold text-slate-900">Business</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {ORGANIZATION_FEATURES.map((f, idx) => (
+                  <tr key={f.label} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
+                    <td className="px-6 py-3 text-slate-700 font-medium">{f.label}</td>
+                    <FeatureCell value={f.starter} />
+                    <FeatureCell value={f.professional} highlight />
+                    <FeatureCell value={f.business} />
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
           </div>
         </div>
       </div>
@@ -529,6 +620,13 @@ export default function Upgrade() {
 }
 
 /* ---------- COMPONENTS ---------- */
+
+type ToastApi = {
+  success: (message: string, duration?: number) => void;
+  error: (message: string, duration?: number) => void;
+  info: (message: string, duration?: number) => void;
+  warning: (message: string, duration?: number) => void;
+};
 
 function PlanCard({
   name,
@@ -540,6 +638,8 @@ function PlanCard({
   cta,
   highlight,
   planType,
+  toast,
+  onSelectPlan,
 }: {
   name: string;
   originalPrice: number;
@@ -550,6 +650,8 @@ function PlanCard({
   cta: string;
   highlight?: boolean;
   planType: PlanType;
+  toast: ToastApi;
+  onSelectPlan: (backendPlanType: string, planType: PlanType, totalPrice: number) => Promise<void>;
 }) {
   const discount = DISCOUNTS[billingPeriod];
   let discountedPrice: number;
@@ -613,7 +715,7 @@ function PlanCard({
       <div className="text-center mb-5">
         <h3 className="text-2xl font-bold text-slate-900 mb-1.5">{name}</h3>
         <p className="text-xs text-slate-500 mb-4">{subtitle}</p>
-
+        
         {/* Pricing Display */}
         <div className="mb-4">
           {billingPeriod === "monthly" ? (
@@ -692,10 +794,21 @@ function PlanCard({
       </ul>
 
       <button
-        onClick={() => {
-          // Redirect to payment gateway - integrate with Razorpay/Stripe/etc
-          // For now, show alert
-          alert(`Redirecting to payment gateway for ${name} plan (${billingPeriod})...`);
+        onClick={async () => {
+          try {
+            // Map plan name to backend plan type
+            let backendPlanType = 'STARTER';
+            if (name.toLowerCase().includes('professional')) {
+              backendPlanType = 'PROFESSIONAL';
+            } else if (name.toLowerCase().includes('business')) {
+              backendPlanType = 'BUSINESS';
+            }
+
+            // Call onSelectPlan with plan details - this will handle workspace type checking
+            await onSelectPlan(backendPlanType, planType, totalPrice);
+          } catch (error: any) {
+            toast.error(`Failed to initiate payment: ${error.message || "Unknown error"}`);
+          }
         }}
         className={`block w-full text-center py-3 px-4 rounded-lg font-semibold text-sm transition-all shadow-md hover:shadow-lg transform hover:scale-[1.02] ${
           highlight
@@ -717,7 +830,7 @@ function FeatureCell({
   highlight?: boolean;
 }) {
   const baseClasses = `px-6 py-3 text-center ${highlight ? "bg-blue-50" : ""}`;
-
+  
   if (value === true) {
     return (
       <td className={baseClasses}>

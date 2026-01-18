@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
@@ -18,11 +20,19 @@ import { AttachmentsModule } from './attachments/attachments.module';
 import { CustomFieldsModule } from './custom-fields/custom-fields.module';
 import { EmailsModule } from './emails/emails.module';
 import { ReportsModule } from './reports/reports.module';
+import { PaymentsModule } from './payments/payments.module';
+import { WorkflowTemplatesModule } from './workflow-templates/workflow-templates.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),   // ✅ REQUIRED FOR CRON
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60,
+        limit: 120,
+      },
+    ]),
     PrismaModule,
     AuthModule,
     LeadsModule,
@@ -40,6 +50,14 @@ import { ReportsModule } from './reports/reports.module';
     CustomFieldsModule,
     EmailsModule,
     ReportsModule,
+    PaymentsModule,
+    WorkflowTemplatesModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

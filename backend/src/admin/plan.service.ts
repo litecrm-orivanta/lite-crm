@@ -95,7 +95,11 @@ export class PlanService {
       return false;
     }
 
-    const planType = workspace.subscription?.planType || PlanType.FREE;
+    const planType = this.resolvePlanType(
+      workspace.subscription?.planType,
+      workspace.plan,
+      workspace.subscription?.status,
+    );
     const limits = this.getPlanLimits(planType);
 
     switch (action) {
@@ -144,7 +148,11 @@ export class PlanService {
       throw new Error('Workspace not found');
     }
 
-    const planType = workspace.subscription?.planType || PlanType.FREE;
+    const planType = this.resolvePlanType(
+      workspace.subscription?.planType,
+      workspace.plan,
+      workspace.subscription?.status,
+    );
     const limits = this.getPlanLimits(planType);
 
     const [userCount, workflowCount, integrationCount] = await Promise.all([
@@ -185,6 +193,32 @@ export class PlanService {
         integrations: integrationCount,
       }),
     };
+  }
+
+  private resolvePlanType(
+    subscriptionPlan?: PlanType | null,
+    workspacePlan?: string | null,
+    subscriptionStatus?: string | null,
+  ): PlanType {
+    if (subscriptionPlan && subscriptionStatus === 'ACTIVE') {
+      if (subscriptionPlan !== PlanType.FREE) {
+        return subscriptionPlan;
+      }
+      if (workspacePlan && workspacePlan.toUpperCase() !== PlanType.FREE) {
+        const normalized = workspacePlan.toUpperCase();
+        if ((PlanType as any)[normalized]) {
+          return (PlanType as any)[normalized] as PlanType;
+        }
+      }
+      return subscriptionPlan;
+    }
+    if (workspacePlan) {
+      const normalized = workspacePlan.toUpperCase();
+      if ((PlanType as any)[normalized]) {
+        return (PlanType as any)[normalized] as PlanType;
+      }
+    }
+    return PlanType.FREE;
   }
 
   /**

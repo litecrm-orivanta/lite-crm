@@ -12,11 +12,20 @@ function getJwtSecret(): string {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private prisma: PrismaService) {
-    super({
+    const strategyOptions: any = {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: getJwtSecret(),
-    });
+    };
+
+    if (process.env.JWT_ISSUER) {
+      strategyOptions.issuer = process.env.JWT_ISSUER;
+    }
+    if (process.env.JWT_AUDIENCE) {
+      strategyOptions.audience = process.env.JWT_AUDIENCE;
+    }
+
+    super(strategyOptions);
   }
 
   async validate(payload: { sub: string; email?: string; role?: string; workspaceId?: string; isSuperAdmin?: boolean }) {

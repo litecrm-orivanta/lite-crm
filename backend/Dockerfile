@@ -6,17 +6,19 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
 
+# Copy Prisma schema first
+COPY prisma ./prisma
+
+# Generate Prisma client (must happen before TypeScript build)
+RUN npx prisma generate --schema=./prisma/schema.prisma
+
 # Copy configs and source
 COPY tsconfig*.json ./
 COPY nest-cli.json ./
-COPY prisma ./prisma
 COPY src ./src
 
 # 🔴 CRITICAL: ensure no stale JS
 RUN rm -rf dist
-
-# Generate Prisma client
-RUN npx prisma generate
 
 # Build TS -> dist (clean)
 RUN npm run build

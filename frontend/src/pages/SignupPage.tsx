@@ -5,7 +5,6 @@ import { useAuth } from "@/auth/AuthContext";
 import LiteCRMLogo from "@/components/LiteCRMLogo";
 
 type Mode = "SOLO" | "ORG";
-type N8nInstanceType = "SHARED" | "DEDICATED";
 const TEAM_SIZES = ["1", "2-10", "11-50", "51-200", "200+"];
 
 export default function SignupPage() {
@@ -19,26 +18,82 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Step 2
+  // Step 2 - OTP Verification
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+
+  // Step 3
   const [mode, setMode] = useState<Mode | null>(null);
 
-  // Step 3 (ORG)
+  // Step 4 (ORG)
   const [workspaceName, setWorkspaceName] = useState("");
   const [teamSize, setTeamSize] = useState("");
 
-  // Step 4 (n8n instance type)
-  const [n8nInstanceType, setN8nInstanceType] = useState<N8nInstanceType>("SHARED");
-  const [showDedicatedWarning, setShowDedicatedWarning] = useState(false);
-
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sendingOTP, setSendingOTP] = useState(false);
 
-  async function submit() {
+  async function sendOTP() {
+    if (!email) {
+      setError("Please enter your email address");
+      return;
+    }
+
+    setError(null);
+    setSendingOTP(true);
+
+    try {
+      await apiFetch("/auth/send-signup-otp", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+      setOtpSent(true);
+      setStep(2);
+    } catch (err: any) {
+      setError(err?.message || "Failed to send OTP");
+    } finally {
+      setSendingOTP(false);
+    }
+  }
+
+  async function verifyOTP() {
+    if (!otp || otp.length !== 6) {
+      setError("Please enter a valid 6-digit OTP");
+      return;
+    }
+
     setError(null);
     setLoading(true);
 
     try {
-      const payload: any = { name, email, password, mode, n8nInstanceType };
+      // Verify OTP with backend before proceeding
+      await apiFetch("/auth/verify-signup-otp", {
+        method: "POST",
+        body: JSON.stringify({ email, otp }),
+      });
+
+      // OTP verified successfully, proceed to mode selection
+      setOtpVerified(true);
+      setStep(3);
+    } catch (err: any) {
+      setError(err?.message || "Invalid OTP. Please check and try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submit() {
+    if (!otpVerified) {
+      setError("Please verify your email with OTP first");
+      return;
+    }
+
+    setError(null);
+    setLoading(true);
+
+    try {
+      const payload: any = { name, email, password, mode, otp }; // Include OTP for verification
       if (mode === "ORG") {
         payload.workspaceName = workspaceName;
         payload.teamSize = teamSize;
@@ -52,7 +107,7 @@ export default function SignupPage() {
       const token = res.accessToken || res.token;
       if (!token) throw new Error("No token returned");
 
-      signup(token);
+      signup(token, res.sessionId);
       navigate("/", { replace: true });
     } catch (err: any) {
       setError(err?.message || "Signup failed");
@@ -117,23 +172,70 @@ export default function SignupPage() {
 
             <div className="flex justify-end">
               <button
-                disabled={!name || !email || !password}
-                onClick={() => setStep(2)}
+                disabled={!name || !email || !password || sendingOTP}
+                onClick={sendOTP}
                 className="rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
               >
-                Continue
+                {sendingOTP ? "Sending OTP..." : "Send OTP"}
               </button>
             </div>
           </div>
         )}
 
-        {/* STEP 2 */}
-        {step === 2 && (
+        {/* STEP 2 - OTP Verification */}
+        {step === 2 && otpSent && (
+          <div className="space-y-4">
+            <div className="rounded bg-blue-50 px-3 py-2 text-sm text-blue-800">
+              <p className="font-medium mb-1">OTP Sent!</p>
+              <p>We've sent a 6-digit verification code to <strong>{email}</strong>. Please check your inbox.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Enter Verification Code
+              </label>
+              <input
+                type="text"
+                className="w-full rounded border px-3 py-2 text-center text-2xl tracking-widest"
+                placeholder="000000"
+                value={otp}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                  setOtp(value);
+                }}
+                maxLength={6}
+              />
+              <p className="text-xs text-slate-500 mt-2 text-center">
+                Didn't receive the code?{" "}
+                <button
+                  onClick={sendOTP}
+                  disabled={sendingOTP}
+                  className="text-blue-600 hover:underline disabled:opacity-50"
+                >
+                  Resend OTP
+                </button>
+              </p>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                disabled={!otp || otp.length !== 6 || loading}
+                onClick={verifyOTP}
+                className="rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
+              >
+                {loading ? "Verifying..." : "Verify & Continue"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3 - Mode Selection */}
+        {step === 3 && (
           <div className="space-y-4">
             <button
               onClick={() => {
                 setMode("SOLO");
-                setStep(3);
+                setStep(4);
               }}
               className="w-full rounded border px-4 py-3 text-left hover:bg-slate-50"
             >
@@ -146,7 +248,7 @@ export default function SignupPage() {
             <button
               onClick={() => {
                 setMode("ORG");
-                setStep(3);
+                setStep(4);
               }}
               className="w-full rounded border px-4 py-3 text-left hover:bg-slate-50"
             >
@@ -158,8 +260,8 @@ export default function SignupPage() {
           </div>
         )}
 
-        {/* STEP 3 — ORG */}
-        {step === 3 && mode === "ORG" && (
+        {/* STEP 4 — ORG */}
+        {step === 4 && mode === "ORG" && (
           <div className="space-y-4">
             <input
               className="w-full rounded border px-3 py-2"
@@ -182,140 +284,23 @@ export default function SignupPage() {
             <div className="flex justify-end">
               <button
                 disabled={!workspaceName || !teamSize || loading}
-                onClick={() => setStep(4)}
+                onClick={submit}
                 className="rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
               >
-                Continue
+                {loading ? "Creating…" : "Create account"}
               </button>
             </div>
           </div>
         )}
 
-        {/* STEP 3 — SOLO */}
-        {step === 3 && mode === "SOLO" && (
+        {/* STEP 4 — SOLO */}
+        {step === 4 && mode === "SOLO" && (
           <div className="space-y-4">
             <p className="text-sm text-slate-600">
               You'll get a private workspace. You can invite teammates later.
             </p>
 
             <div className="flex justify-end">
-              <button
-                disabled={loading}
-                onClick={() => setStep(4)}
-                className="rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* STEP 4 — n8n Instance Type Selection */}
-        {step === 4 && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="font-medium mb-2">Workflow Automation Setup</h2>
-              <p className="text-sm text-slate-600 mb-4">
-                Choose how workflows will be managed for your workspace.
-              </p>
-            </div>
-
-            {/* SHARED Option (Default) */}
-            <button
-              onClick={() => {
-                setN8nInstanceType("SHARED");
-                setShowDedicatedWarning(false);
-              }}
-              className={`w-full rounded border px-4 py-3 text-left transition ${
-                n8nInstanceType === "SHARED"
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="font-medium flex items-center gap-2">
-                    <input
-                      type="radio"
-                      checked={n8nInstanceType === "SHARED"}
-                      onChange={() => {
-                        setN8nInstanceType("SHARED");
-                        setShowDedicatedWarning(false);
-                      }}
-                      className="text-blue-600"
-                    />
-                    Shared Instance (Recommended)
-                  </div>
-                  <div className="text-sm text-slate-500 mt-1">
-                    Cost-effective shared workflow engine with user isolation
-                  </div>
-                </div>
-              </div>
-            </button>
-
-            {/* DEDICATED Option */}
-            <button
-              onClick={() => {
-                setN8nInstanceType("DEDICATED");
-                setShowDedicatedWarning(true);
-              }}
-              className={`w-full rounded border px-4 py-3 text-left transition ${
-                n8nInstanceType === "DEDICATED"
-                  ? "border-orange-500 bg-orange-50"
-                  : "border-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="font-medium flex items-center gap-2">
-                    <input
-                      type="radio"
-                      checked={n8nInstanceType === "DEDICATED"}
-                      onChange={() => {
-                        setN8nInstanceType("DEDICATED");
-                        setShowDedicatedWarning(true);
-                      }}
-                      className="text-orange-600"
-                    />
-                    Dedicated Instance
-                  </div>
-                  <div className="text-sm text-slate-500 mt-1">
-                    Your own isolated workflow engine (Enterprise only)
-                  </div>
-                </div>
-              </div>
-            </button>
-
-            {/* Warning for DEDICATED (non-enterprise) */}
-            {showDedicatedWarning && n8nInstanceType === "DEDICATED" && (
-              <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
-                <div className="flex items-start gap-3">
-                  <div className="text-orange-600 text-xl">⚠️</div>
-                  <div className="flex-1">
-                    <div className="font-medium text-orange-900 mb-1">
-                      Increased Pricing Notice
-                    </div>
-                    <div className="text-sm text-orange-800">
-                      Dedicated instances require additional infrastructure resources
-                      and will incur higher costs. This option is recommended for
-                      Enterprise/Business accounts only.
-                    </div>
-                    <div className="text-xs text-orange-700 mt-2">
-                      💡 You can change this setting later, but it may require
-                      migration.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setStep(step - 1)}
-                className="rounded border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-50"
-              >
-                Back
-              </button>
               <button
                 disabled={loading}
                 onClick={submit}

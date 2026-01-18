@@ -13,13 +13,20 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { AuditService } from '../audit/audit.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, AdminGuard)
 export class AdminController {
   private readonly logger = new Logger(AdminController.name);
 
-  constructor(private adminService: AdminService) {}
+  constructor(
+    private adminService: AdminService,
+    private audit: AuditService,
+    private prisma: PrismaService,
+  ) {}
 
   @Get('stats')
   async getStats() {
@@ -48,10 +55,21 @@ export class AdminController {
   @Put('workspaces/:id')
   async updateWorkspace(
     @Param('id') workspaceId: string,
+    @CurrentUser() user: { userId: string },
     @Body() body: { name?: string; plan?: string; suspended?: boolean },
   ) {
     this.logger.log(`Updating workspace: ${workspaceId}`);
-    return this.adminService.updateWorkspace(workspaceId, body);
+    const before = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
+    const updated = await this.adminService.updateWorkspace(workspaceId, body);
+    await this.audit.log({
+      actorId: user.userId,
+      action: 'workspace.update',
+      resource: 'workspace',
+      resourceId: workspaceId,
+      metadata: { before, after: updated },
+      workspaceId,
+    });
+    return updated;
   }
 
   @Get('users')
@@ -69,10 +87,21 @@ export class AdminController {
   @Put('users/:id')
   async updateUser(
     @Param('id') userId: string,
+    @CurrentUser() user: { userId: string },
     @Body() body: { name?: string; email?: string; role?: string; workspaceId?: string; isSuperAdmin?: boolean },
   ) {
     this.logger.log(`Updating user: ${userId}`);
-    return this.adminService.updateUser(userId, body);
+    const before = await this.prisma.user.findUnique({ where: { id: userId } });
+    const updated = await this.adminService.updateUser(userId, body);
+    await this.audit.log({
+      actorId: user.userId,
+      action: 'user.update',
+      resource: 'user',
+      resourceId: userId,
+      metadata: { before, after: updated },
+      workspaceId: body.workspaceId || before?.workspaceId,
+    });
+    return updated;
   }
 
   @Get('payments')
@@ -109,16 +138,40 @@ export class AdminController {
   @Put('leads/:id')
   async updateLead(
     @Param('id') leadId: string,
+    @CurrentUser() user: { userId: string },
     @Body() body: { name?: string; email?: string; phone?: string; company?: string; stage?: string; ownerId?: string; workspaceId?: string },
   ) {
     this.logger.log(`Updating lead: ${leadId}`);
-    return this.adminService.updateLead(leadId, body);
+    const before = await this.prisma.lead.findUnique({ where: { id: leadId } });
+    const updated = await this.adminService.updateLead(leadId, body);
+    await this.audit.log({
+      actorId: user.userId,
+      action: 'lead.update',
+      resource: 'lead',
+      resourceId: leadId,
+      metadata: { before, after: updated },
+      workspaceId: body.workspaceId || before?.workspaceId,
+    });
+    return updated;
   }
 
   @Delete('leads/:id')
-  async deleteLead(@Param('id') leadId: string) {
+  async deleteLead(
+    @Param('id') leadId: string,
+    @CurrentUser() user: { userId: string },
+  ) {
     this.logger.log(`Deleting lead: ${leadId}`);
-    return this.adminService.deleteLead(leadId);
+    const before = await this.prisma.lead.findUnique({ where: { id: leadId } });
+    const deleted = await this.adminService.deleteLead(leadId);
+    await this.audit.log({
+      actorId: user.userId,
+      action: 'lead.delete',
+      resource: 'lead',
+      resourceId: leadId,
+      metadata: { before },
+      workspaceId: before?.workspaceId,
+    });
+    return deleted;
   }
 
   @Get('workflows')
@@ -142,16 +195,40 @@ export class AdminController {
   @Put('workflows/:id')
   async updateWorkflow(
     @Param('id') workflowId: string,
+    @CurrentUser() user: { userId: string },
     @Body() body: { name?: string; description?: string; active?: boolean },
   ) {
     this.logger.log(`Updating workflow: ${workflowId}`);
-    return this.adminService.updateWorkflow(workflowId, body);
+    const before = await this.prisma.workflow.findUnique({ where: { id: workflowId } });
+    const updated = await this.adminService.updateWorkflow(workflowId, body);
+    await this.audit.log({
+      actorId: user.userId,
+      action: 'workflow.update',
+      resource: 'workflow',
+      resourceId: workflowId,
+      metadata: { before, after: updated },
+      workspaceId: before?.workspaceId,
+    });
+    return updated;
   }
 
   @Delete('workflows/:id')
-  async deleteWorkflow(@Param('id') workflowId: string) {
+  async deleteWorkflow(
+    @Param('id') workflowId: string,
+    @CurrentUser() user: { userId: string },
+  ) {
     this.logger.log(`Deleting workflow: ${workflowId}`);
-    return this.adminService.deleteWorkflow(workflowId);
+    const before = await this.prisma.workflow.findUnique({ where: { id: workflowId } });
+    const deleted = await this.adminService.deleteWorkflow(workflowId);
+    await this.audit.log({
+      actorId: user.userId,
+      action: 'workflow.delete',
+      resource: 'workflow',
+      resourceId: workflowId,
+      metadata: { before },
+      workspaceId: before?.workspaceId,
+    });
+    return deleted;
   }
 
   @Get('workflow-executions')
@@ -196,5 +273,61 @@ export class AdminController {
   async getAnalytics() {
     this.logger.log('Fetching analytics data');
     return this.adminService.getAnalytics();
+  }
+
+  @Get('audit-logs')
+  async getAuditLogs(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('action') action?: string,
+    @Query('resource') resource?: string,
+    @Query('actor') actor?: string,
+    @Query('workspaceId') workspaceId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const fromDate = from ? new Date(from) : undefined;
+    const toDate = to ? new Date(to) : undefined;
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+    return this.audit.list({
+      from: fromDate,
+      to: toDate,
+      action,
+      resource,
+      actor,
+      workspaceId,
+      page: pageNum,
+      limit: limitNum,
+    });
+  }
+
+  @Get('audit-sessions')
+  async getAuditSessions(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('actor') actor?: string,
+    @Query('workspaceId') workspaceId?: string,
+  ) {
+    const fromDate = from ? new Date(from) : undefined;
+    const toDate = to ? new Date(to) : undefined;
+    return this.audit.listSessions({
+      workspaceId,
+      from: fromDate,
+      to: toDate,
+      actor,
+    });
+  }
+
+  @Get('dummy-accounts')
+  async identifyDummyAccounts() {
+    this.logger.log('Identifying dummy accounts');
+    return this.adminService.identifyDummyAccounts();
+  }
+
+  @Delete('dummy-accounts')
+  async deleteDummyAccounts(@Body() body: { workspaceIds: string[] }) {
+    this.logger.log(`Deleting ${body.workspaceIds.length} dummy accounts`);
+    return this.adminService.deleteDummyAccounts(body.workspaceIds);
   }
 }

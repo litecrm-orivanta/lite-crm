@@ -8,8 +8,8 @@ type AuthContextType = {
   role: UserRole
   isSuperAdmin: boolean
   onboarded: boolean
-  login: (token: string) => void
-  signup: (token: string) => void
+  login: (token: string, sessionId?: string) => void
+  signup: (token: string, sessionId?: string) => void
   completeOnboarding: () => void
   logout: () => void
 }
@@ -43,18 +43,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     storedOnboarded || !!storedToken
   )
 
-  const login = (t: string) => {
+  const login = (t: string, sessionId?: string) => {
     const parsed = parseToken(t)
     localStorage.setItem("token", t)
+    if (sessionId) {
+      localStorage.setItem("sessionId", sessionId)
+    }
     setToken(t)
     setEmail(parsed.email)
     setRole(parsed.role)
     setIsSuperAdmin(parsed.isSuperAdmin)
   }
 
-  const signup = (t: string) => {
+  const signup = (t: string, sessionId?: string) => {
     const parsed = parseToken(t)
     localStorage.setItem("token", t)
+    if (sessionId) {
+      localStorage.setItem("sessionId", sessionId)
+    }
     localStorage.setItem("onboarded", "true")
     setToken(t)
     setEmail(parsed.email)
@@ -69,8 +75,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const logout = () => {
+    const sessionId = localStorage.getItem("sessionId")
+    if (sessionId) {
+      fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ sessionId }),
+      }).catch(() => {})
+    }
     localStorage.removeItem("token")
     localStorage.removeItem("onboarded")
+    localStorage.removeItem("sessionId")
     setToken(null)
     setEmail(null)
     setRole(null)

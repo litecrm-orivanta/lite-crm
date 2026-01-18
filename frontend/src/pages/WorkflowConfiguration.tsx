@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import AppLayout from "@/layouts/AppLayout";
 import { apiFetch } from "@/api/apiFetch";
+import { useDialogContext } from "@/contexts/DialogContext";
 
 export interface WorkflowConfig {
   id: string;
@@ -30,6 +31,7 @@ export default function WorkflowConfiguration() {
   const [error, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newConfig, setNewConfig] = useState({ event: "", workflowId: "", useCustomUrl: false, webhookUrl: "", active: true });
+  const dialog = useDialogContext();
 
   async function loadConfigurations() {
     setLoading(true);
@@ -64,9 +66,13 @@ export default function WorkflowConfiguration() {
   }
 
   async function deleteConfiguration(event: string) {
-    if (!confirm(`Are you sure you want to remove the workflow configuration for "${event}"?`)) {
-      return;
-    }
+    const confirmed = await dialog.confirm({
+      title: "Remove Configuration",
+      message: `Are you sure you want to remove the workflow configuration for "${event}"?`,
+      confirmText: "Remove",
+      destructive: true,
+    });
+    if (!confirmed) return;
     setSaving(event);
     setError(null);
     try {

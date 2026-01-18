@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { isIP } from 'net';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   WorkflowNodeType,
@@ -9,6 +10,8 @@ import {
 import { NotificationService } from '../notifications/notification.service';
 import { ConfigService } from '@nestjs/config';
 import { IntegrationsService } from '../integrations/integrations.service';
+import { EmailIntegrationService } from '../integrations/email-integration.service';
+import { AuditService } from '../audit/audit.service';
 
 export interface WorkflowContext {
   event: WorkflowTriggerEvent;
@@ -26,6 +29,8 @@ export class WorkflowExecutionService {
     private notifications: NotificationService,
     private configService: ConfigService,
     private integrationsService: IntegrationsService,
+    private emailIntegrationService: EmailIntegrationService,
+    private audit: AuditService,
   ) {}
 
   /**
@@ -59,6 +64,11 @@ export class WorkflowExecutionService {
       throw new Error('Workflow not found');
     }
 
+    if (workflow.workspaceId !== context.workspaceId) {
+      this.logger.error(`Workflow ${workflowId} workspace mismatch`);
+      throw new Error('Workflow access denied');
+    }
+
     if (!workflow.active) {
       this.logger.warn(`Workflow ${workflowId} is inactive, skipping execution`);
       throw new Error('Workflow is inactive');
@@ -77,6 +87,13 @@ export class WorkflowExecutionService {
     });
 
     this.logger.log(`📝 [EXECUTION] Created execution record: ${execution.id} for workflow: ${workflowId}`);
+    await this.audit.log({
+      action: 'workflow.execution.start',
+      resource: 'workflow_execution',
+      resourceId: execution.id,
+      workspaceId: workflow.workspaceId,
+      metadata: { workflowId, event: context.event },
+    });
 
     try {
       // Find trigger node (handle both enum and string types)
@@ -303,6 +320,7 @@ export class WorkflowExecutionService {
     const body = config.body ? this.interpolateString(config.body, context) : undefined;
 
     try {
+      this.validateHttpTarget(url);
       const response = await fetch(url, {
         method,
         headers: {
@@ -326,6 +344,72 @@ export class WorkflowExecutionService {
     }
   }
 
+  private validateHttpTarget(url: string) {
+    if (!url) {
+      throw new Error('HTTP Request node missing URL');
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new Error('Invalid HTTP Request URL');
+    }
+
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      throw new Error('Only HTTP/HTTPS requests are allowed');
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+
+    if (hostname === 'localhost' || hostname.endsWith('.local')) {
+      throw new Error('Localhost requests are not allowed');
+    }
+
+    if (this.isPrivateIp(hostname)) {
+      throw new Error('Private network targets are not allowed');
+    }
+
+    const allowlist = process.env.WORKFLOW_HTTP_ALLOWLIST;
+    if (allowlist) {
+      const allowed = allowlist
+        .split(',')
+        .map((entry) => entry.trim().toLowerCase())
+        .filter(Boolean);
+      if (!allowed.some((entry) => hostname === entry || hostname.endsWith(`.${entry}`))) {
+        throw new Error('Target host is not in the allowlist');
+      }
+    }
+  }
+
+  private isPrivateIp(hostname: string) {
+    const ipType = isIP(hostname);
+    if (ipType === 0) return false;
+
+    if (ipType === 6) {
+      const normalized = hostname.toLowerCase();
+      return (
+        normalized === '::1' ||
+        normalized.startsWith('fc') ||
+        normalized.startsWith('fd') ||
+        normalized.startsWith('fe80')
+      );
+    }
+
+    const parts = hostname.split('.').map((part) => parseInt(part, 10));
+    if (parts.length !== 4 || parts.some(Number.isNaN)) return true;
+
+    const [a, b] = parts;
+    if (a === 10) return true;
+    if (a === 127) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 0) return true;
+
+    return false;
+  }
+
   /**
    * Execute Email node
    */
@@ -344,7 +428,8 @@ export class WorkflowExecutionService {
     }
 
     try {
-      await this.notifications.sendEmail(to, subject, body);
+      // Use EmailIntegrationService which handles both Lite CRM and custom SMTP
+      await this.emailIntegrationService.sendEmail(context.workspaceId, to, subject, body);
       return { success: true, to, subject };
     } catch (error) {
       throw new Error(

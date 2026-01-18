@@ -103,6 +103,114 @@ export class AdminService {
   /**
    * Get all workspaces with details
    */
+  /**
+   * Identify dummy/test accounts
+   * Criteria: email contains "test", "dummy", "example", or workspace name contains these
+   */
+  async identifyDummyAccounts() {
+    const dummyEmailPatterns = ['test', 'dummy', 'example', 'demo', 'temp'];
+    const dummyNamePatterns = ['test', 'dummy', 'example', 'demo', 'temp', 'sample'];
+
+    const workspaces = await this.prisma.workspace.findMany({
+      include: {
+        users: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            leads: true,
+            users: true,
+          },
+        },
+      },
+    });
+
+    const dummyWorkspaces = workspaces.filter((ws) => {
+      // Check workspace name
+      const nameLower = ws.name.toLowerCase();
+      if (dummyNamePatterns.some((pattern) => nameLower.includes(pattern))) {
+        return true;
+      }
+
+      // Check user emails
+      const hasDummyEmail = ws.users.some((user: { email: string }) =>
+        dummyEmailPatterns.some((pattern) => user.email.toLowerCase().includes(pattern)),
+      );
+
+      // Check if workspace has very few leads (potential test account)
+      const hasFewLeads = ws._count.leads <= 2 && ws._count.users <= 1;
+
+      return hasDummyEmail || hasFewLeads;
+    });
+
+    return dummyWorkspaces.map((ws) => ({
+      id: ws.id,
+      name: ws.name,
+      email: ws.users[0]?.email || 'N/A',
+      leadCount: ws._count.leads,
+      userCount: ws._count.users,
+      createdAt: ws.createdAt,
+      reason: this.getDummyReason(ws, dummyEmailPatterns, dummyNamePatterns),
+    }));
+  }
+
+  private getDummyReason(
+    ws: any,
+    emailPatterns: string[],
+    namePatterns: string[],
+  ): string {
+    const nameLower = ws.name.toLowerCase();
+    if (namePatterns.some((p) => nameLower.includes(p))) {
+      return 'Workspace name contains test/dummy keywords';
+    }
+
+    const hasDummyEmail = ws.users.some((user: { email: string }) =>
+      emailPatterns.some((p) => user.email.toLowerCase().includes(p)),
+    );
+    if (hasDummyEmail) {
+      return 'User email contains test/dummy keywords';
+    }
+
+    if (ws._count.leads <= 2 && ws._count.users <= 1) {
+      return 'Very few leads/users (potential test account)';
+    }
+
+    return 'Unknown';
+  }
+
+  /**
+   * Delete dummy accounts
+   */
+  async deleteDummyAccounts(workspaceIds: string[]) {
+    const results = [];
+
+    for (const workspaceId of workspaceIds) {
+      try {
+        // Delete workspace (cascades to users, leads, etc.)
+        await this.prisma.workspace.delete({
+          where: { id: workspaceId },
+        });
+        results.push({ workspaceId, success: true });
+      } catch (error) {
+        results.push({
+          workspaceId,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    return {
+      deleted: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
+      results,
+    };
+  }
+
   async getAllWorkspaces(page: number = 1, limit: number = 50) {
     const skip = (page - 1) * limit;
 

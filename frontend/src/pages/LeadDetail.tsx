@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AppLayout from "@/layouts/AppLayout";
+import { useDialogContext } from "@/contexts/DialogContext";
 import { getLead, updateLead } from "@/api/leads";
 import {
   listNotes,
@@ -39,9 +40,11 @@ function formatIST(date: string) {
 export default function LeadDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const dialog = useDialogContext();
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const phoneRegex = /^[0-9]{7,15}$/;
+  // Indian phone number: 10 digits starting with 6-9, optionally prefixed with +91
+  const phoneRegex = /^(\+91)?[6-9]\d{9}$/;
 
   const [lead, setLead] = useState<any>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -110,7 +113,13 @@ export default function LeadDetail() {
   }
 
   async function removeNote(noteId: string) {
-    if (!confirm("Delete this note?")) return;
+    const confirmed = await dialog.confirm({
+      title: "Delete Note",
+      message: "Delete this note?",
+      confirmText: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
     await deleteNote(noteId);
     loadAll();
   }
@@ -137,7 +146,13 @@ export default function LeadDetail() {
   }
 
   async function removeTask(taskId: string) {
-    if (!confirm("Delete this task?")) return;
+    const confirmed = await dialog.confirm({
+      title: "Delete Task",
+      message: "Delete this task?",
+      confirmText: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
     await deleteTask(id!, taskId);
     loadAll();
   }

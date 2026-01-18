@@ -19,8 +19,21 @@ export type Lead = {
 /**
  * GET /leads
  */
-export async function listLeads(): Promise<Lead[]> {
-  const res = await apiFetch("/leads");
+export async function listLeads(filters?: {
+  stage?: string;
+  source?: string;
+  region?: string;
+  search?: string;
+}): Promise<Lead[]> {
+  const params = new URLSearchParams();
+  if (filters?.stage && filters.stage !== 'ALL') params.append('stage', filters.stage);
+  if (filters?.source && filters.source !== 'ALL') params.append('source', filters.source);
+  if (filters?.region) params.append('region', filters.region);
+  if (filters?.search) params.append('search', filters.search);
+
+  const queryString = params.toString();
+  const url = queryString ? `/leads?${queryString}` : '/leads';
+  const res = await apiFetch(url);
 
   return res.map((l: any) => ({
     ...l,

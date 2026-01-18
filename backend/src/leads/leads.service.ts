@@ -83,9 +83,41 @@ export class LeadsService {
     return lead;
   }
 
-  async findAll(workspaceId: string) {
+  async findAll(
+    workspaceId: string,
+    filters?: {
+      stage?: string;
+      source?: string;
+      region?: string;
+      search?: string;
+    },
+  ) {
+    const where: any = { workspaceId };
+
+    // Apply filters
+    if (filters?.stage && filters.stage !== 'ALL') {
+      where.stage = filters.stage;
+    }
+
+    if (filters?.source && filters.source !== 'ALL') {
+      where.source = filters.source;
+    }
+
+    if (filters?.region) {
+      where.region = { contains: filters.region, mode: 'insensitive' };
+    }
+
+    if (filters?.search) {
+      where.OR = [
+        { name: { contains: filters.search, mode: 'insensitive' } },
+        { email: { contains: filters.search, mode: 'insensitive' } },
+        { phone: { contains: filters.search, mode: 'insensitive' } },
+        { company: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
     return this.prisma.lead.findMany({
-      where: { workspaceId },
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         owner: {
